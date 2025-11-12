@@ -117,7 +117,13 @@ def get_ai_response(message):
         """
         
         try:
-            response = model.generate_content(prompt, request_options={"timeout": 30})
+            response = model.generate_content(
+                prompt,
+                generation_config={
+                    "temperature": 0.7,
+                    "max_output_tokens": 1024,
+                }
+            )
             return response.text
         except Exception as ai_error:
             print(f"❌ Lỗi AI request: {ai_error}")
@@ -695,6 +701,7 @@ def update_hotel_status(name, status):
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
