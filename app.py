@@ -1,5 +1,4 @@
 import os
-import json
 import pandas as pd
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 import re
@@ -93,15 +92,10 @@ def get_ai_response(message):
                 hotels_info += f"{i}. {hotel['name']} - {price} VND - {hotel.get('stars', 'N/A')}⭐ - {features_str}\n"
                 
                 # Thêm nút xem chi tiết
-                hotel_json = json.dumps(hotel.to_dict(), ensure_ascii=False)
-                hotels_info += f'''
-                <div class="hotel-item">
-                  <b>{i}. {hotel['name']}</b> – {price} VND – {hotel.get('stars', 'N/A')}⭐ – {features_str}
-                  <br>
-                  <button class="btn-hotel-detail" data-hotel='{hotel_json}' onclick="showHotelDetail(this)">
-                    📖 Xem chi tiết
-                  </button>
-                </div>
+                import json
+                hotel_safe = {k: (v if pd.notna(v) else "") for k, v in hotel.items()}
+                hotel_json = json.dumps(hotel_safe, ensure_ascii=False)
+                hotels_info += f'   <button class="btn-hotel-detail" data-hotel=\'{hotel_json}\' onclick="showHotelDetail(this)">📖 Xem chi tiết & đặt phòng</button>\n\n'
         else:
             hotels_info = "❌ Hiện không tìm thấy khách sạn phù hợp với yêu cầu của bạn.\n"
 
@@ -709,6 +703,7 @@ def update_hotel_status(name, status):
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
