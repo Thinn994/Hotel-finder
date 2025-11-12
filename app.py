@@ -29,6 +29,23 @@ if GEMINI_API_KEY:
 else:
     print("⚠️ Chưa có Gemini API Key - AI sẽ trả về response mẫu")
 
+def get_fallback_response(message):
+    """Response mẫu khi AI không hoạt động"""
+    sample_responses = {
+        "xin chào": "👋 Chào bạn! Tôi là AI trợ lý du lịch. Tôi có thể giúp bạn tìm khách sạn theo sở thích, cảm xúc, và ngân sách!",
+        "chào": "👋 Chào bạn! Hôm nay bạn muốn tìm khách sạn như thế nào?",
+        "tìm khách sạn": "🏨 Tuyệt vời! Bạn có thể cho tôi biết:\n• Thành phố bạn muốn đến?\n• Ngân sách bao nhiêu?\n• Bạn thích tiện ích gì (hồ bơi, spa, view biển...)?",
+        "buồn": "💖 Hiểu mà... Đôi khi một chuyến đi nhỏ có thể giúp ta lấy lại cân bằng! Hãy thử tìm khách sạn có spa, view đẹp để thư giãn nhé!",
+        "healing": "🌊 Tuyệt vời! Healing là lựa chọn hoàn hảo! Tôi sẽ tìm các khách sạn có hồ bơi, view biển và spa phù hợp.",
+    }
+    
+    message_lower = message.lower()
+    for key, response in sample_responses.items():
+        if key in message_lower:
+            return response
+    
+    return "🤖 Hiện tôi đang tạm thời bảo trì. Bạn có thể:\n• Truy cập trang chủ để tìm khách sạn trực tiếp\n• Liên hệ hotline: 0987 654 321\n• Thử lại sau ít phút nhé! ❤️"
+
 def get_ai_response(message):
     """Gọi Gemini AI với dữ liệu từ CSV"""
     if not GEMINI_API_KEY:
@@ -678,6 +695,7 @@ def update_hotel_status(name, status):
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
