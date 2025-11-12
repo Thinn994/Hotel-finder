@@ -30,43 +30,201 @@ else:
     print("⚠️ Chưa có Gemini API Key - AI sẽ trả về response mẫu")
 
 def get_ai_response(message):
-    """Gọi Gemini AI hoặc trả về response mẫu nếu không có API Key"""
+    """Gọi Gemini AI với dữ liệu từ CSV và đề xuất thông minh"""
     if not GEMINI_API_KEY:
-        # Response mẫu khi không có API Key (để test)
-        sample_responses = {
-            "xin chào": "👋 Chào bạn! Tôi là AI trợ lý du lịch. Tôi có thể giúp bạn tìm khách sạn, so sánh giá, và tư vấn địa điểm!",
-            "chào": "👋 Chào bạn! Tôi có thể giúp gì cho chuyến du lịch của bạn?",
-            "tìm khách sạn": "🏨 Tuyệt vời! Tôi có thể giúp bạn tìm khách sạn. Bạn muốn ở thành phố nào? (Hà Nội, Đà Nẵng, Hồ Chí Minh)",
-            "hà nội": "📍 Hà Nội có nhiều khách sạn tuyệt vời! Bạn có ngân sách bao nhiêu một đêm?",
-            "đà nẵng": "🌊 Đà Nẵng là điểm đến tuyệt vời! Bạn cần khách sạn bao nhiêu sao?",
-            "hồ chí minh": "🏙️ Sài Gòn nhộn nhịp! Bạn muốn khách sạn có hồ bơi không?",
-            "giá rẻ": "💰 Tôi tìm thấy vài khách sạn giá tốt: Khách sạn A (800k), Khách sạn B (750k) - xem chi tiết trên website nhé!",
-            "cảm ơn": "❤️ Không có chi! Chúc bạn có chuyến du lịch thật vui!",
-            "help": "💡 Tôi có thể giúp bạn: Tìm khách sạn • So sánh giá • Tư vấn địa điểm • Đặt phòng",
-        }
-        
-        # Tìm response phù hợp
-        message_lower = message.lower()
-        for key, response in sample_responses.items():
-            if key in message_lower:
-                return response
-        
-        return "🤖 Tôi là AI trợ lý du lịch. Hiện tôi có thể giúp bạn tìm khách sạn, so sánh giá cả, và tư vấn địa điểm du lịch. Bạn cần hỗ trợ gì ạ?"
+        return get_fallback_response(message)
     
     try:
-        model = genai.GenerativeModel('gemini-2.5-flash')
-        prompt = f"""
-        Bạn là 'Travel Buddy AI' - trợ lý du lịch thân thiện bằng tiếng Việt. 
-        Giọng văn vui vẻ, gần gũi, sử dụng từ ngữ thân mật.
-        Hãy trả lời câu hỏi về du lịch, khách sạn một cách nhiệt tình và hữu ích.
+        # ĐỌC DỮ LIỆU TỪ CSV
+        hotels_data = read_csv_safe(HOTELS_CSV)
+        reviews_data = read_csv_safe(REVIEWS_CSV) if os.path.exists(REVIEWS_CSV) else pd.DataFrame()
         
-        Câu hỏi: {message}
+        # PHÂN TÍCH CẢM XÚC VÀ NHU CẦU TỪ CÂU HỎI
+        emotion_keywords = {
+            'buồn': {'types': ['healing', 'yên tĩnh', 'thiên nhiên', 'spa'], 'priority': ['sea', 'spa', 'view']},
+            'căng thẳng': {'types': ['spa', 'massage', 'yoga', 'yên tĩnh'], 'priority': ['spa', 'pool', 'view']},
+            'chán': {'types': ['sôi động', 'bar', 'giải trí', 'trung tâm'], 'priority': ['pool', 'gym', 'buffet']},
+            'mệt mỏi': {'types': ['spa', 'nghỉ dưỡng', 'yên tĩnh'], 'priority': ['spa', 'sea', 'view']},
+            'cô đơn': {'types': ['sôi động', 'cộng đồng', 'hoạt động'], 'priority': ['pool', 'gym', 'buffet']},
+            'healing': {'types': ['thư giãn', 'nghỉ dưỡng'], 'priority': ['sea', 'spa', 'pool', 'view']},
+            'thư giãn': {'types': ['yên tĩnh', 'spa'], 'priority': ['spa', 'sea', 'view']}
+        }
+        
+        # MAPPING TỪ KHÓA TIẾNG VIỆT
+        vietnamese_to_english = {
+            'hồ bơi': 'pool', 'bể bơi': 'pool', 'bơi lội': 'pool',
+            'view biển': 'sea', 'biển': 'sea', 'gần biển': 'sea', 'biển cả': 'sea',
+            'spa': 'spa', 'massage': 'spa', 'xông hơi': 'spa',
+            'buffet': 'buffet', 'ăn sáng': 'buffet', 'bữa sáng': 'buffet',
+            'gym': 'gym', 'thể hình': 'gym', 'tập thể dục': 'gym', 'phòng gym': 'gym',
+            'view': 'view', 'cảnh đẹp': 'view', 'view thành phố': 'view',
+            'giá rẻ': 'price_low', 'rẻ': 'price_low', 'giá thấp': 'price_low', 'giá tốt': 'price_low',
+            'đánh giá tốt': 'high_rating', 'nhiều sao': 'high_rating', 'rating cao': 'high_rating'
+        }
+        
+        # PHÂN TÍCH CÂU HỎI
+        message_lower = message.lower()
+        detected_emotion = None
+        priority_features = []
+        requested_features = []
+        
+        # Phát hiện cảm xúc
+        for emotion, data in emotion_keywords.items():
+            if emotion in message_lower:
+                detected_emotion = emotion
+                priority_features = data['priority']
+                break
+        
+        # Phát hiện tính năng được yêu cầu (cả tiếng Việt và Anh)
+        for viet_word, eng_word in vietnamese_to_english.items():
+            if viet_word in message_lower:
+                if eng_word not in ['price_low', 'high_rating']:
+                    requested_features.append(eng_word)
+        
+        # Thêm các tính năng từ tiếng Anh trực tiếp
+        english_features = ['pool', 'sea', 'spa', 'buffet', 'gym', 'view']
+        for feature in english_features:
+            if feature in message_lower and feature not in requested_features:
+                requested_features.append(feature)
+        
+        # TÍNH TOÁN ĐIỂM VÀ LỌC KHÁCH SẠN
+        from recommend import calculate_scores_and_explain
+        
+        # Tạo preferences cho hệ thống recommend
+        all_prefs = {}
+        
+        # Thêm các tính năng được yêu cầu
+        for feature in requested_features:
+            if feature in english_features:
+                all_prefs[feature] = True
+        
+        # Thêm ưu tiên từ cảm xúc
+        if detected_emotion:
+            for feature in priority_features:
+                all_prefs[feature] = True
+        
+        # Thêm text query để xử lý từ khóa
+        all_prefs['text_query'] = message_lower
+        
+        # GỌI HỆ THỐNG RECOMMEND
+        recommended_hotels, explanation = calculate_scores_and_explain(hotels_data, all_prefs)
+        
+        # CHUẨN BỊ DỮ LIỆU CHO AI
+        hotels_info = ""
+        if not recommended_hotels.empty:
+            hotels_info = "🏨 **KHÁCH SẠN ĐỀ XUẤT:**\n\n"
+            
+            for i, (_, hotel) in enumerate(recommended_hotels.head(3).iterrows(), 1):
+                price = f"{hotel.get('price', 0):,.0f}" if pd.notna(hotel.get('price')) else "Liên hệ"
+                
+                # Liệt kê tính năng nổi bật
+                features = []
+                if hotel.get('pool') in ['True', '1', 'yes', True]: features.append("🏊 Hồ bơi")
+                if hotel.get('sea') in ['True', '1', 'yes', True]: features.append("🌅 View biển")
+                if hotel.get('spa') in ['True', '1', 'yes', True]: features.append("💆 Spa")
+                if hotel.get('buffet') in ['True', '1', 'yes', True]: features.append("🍽️ Buffet")
+                if hotel.get('gym') in ['True', '1', 'yes', True]: features.append("🏋️ Gym")
+                if hotel.get('view') in ['True', '1', 'yes', True]: features.append("🏞️ View đẹp")
+                
+                features_str = " • ".join(features) if features else "Tiện nghi cơ bản"
+                
+                hotels_info += f"{i}. **{hotel['name']}**\n"
+                hotels_info += f"   ⭐ {hotel.get('stars', 'N/A')} sao • 💰 {price} VND/đêm\n"
+                hotels_info += f"   📍 {hotel.get('city', 'N/A')}\n"
+                hotels_info += f"   🎯 {features_str}\n"
+                
+                # Thêm nút xem chi tiết
+                hotel_json = hotel.to_json()
+                hotels_info += f'   <button class="btn-hotel-detail" data-hotel=\'{hotel_json}\' onclick="showHotelDetail(this)">📖 Xem chi tiết & đặt phòng</button>\n\n'
+        else:
+            hotels_info = "❌ Hiện không tìm thấy khách sạn phù hợp với yêu cầu của bạn.\n"
+
+        # GỢI Ý HOẠT ĐỘNG THEO CẢM XÚC
+        activity_suggestions = {
+            'buồn': [
+                "🧘‍♀️ Tham gia lớp yoga buổi sáng",
+                "🌅 Ngắm bình minh trên biển", 
+                "📚 Đọc sách tại không gian yên tĩnh",
+                "💆 Trải nghiệm spa thư giãn"
+            ],
+            'căng thẳng': [
+                "🏊 Bơi lội giải tỏa năng lượng",
+                "🚶‍♂️ Đi bộ trên bãi biển",
+                "🎵 Nghe nhạc nhẹ tại lounge",
+                "🍵 Thưởng thức trà chiều"
+            ],
+            'chán': [
+                "🎉 Tham gia tiệc pool bar",
+                "🎤 Karaoke giải trí", 
+                "🏓 Chơi thể thao (tennis, gym)",
+                "🛍️ Khám phá khu mua sắm gần đó"
+            ],
+            'healing': [
+                "🌊 Tắm biển sáng sớm",
+                "🧘 Thiền định bên hồ bơi",
+                "📸 Chụp ảnh sống ảo view đẹp",
+                "🍹 Thưởng thức cocktail tại bar"
+            ]
+        }
+        
+        activities_text = ""
+        if detected_emotion in activity_suggestions:
+            activities_text = "\n🎯 **HOẠT ĐỘNG ĐỀ XUẤT:**\n" + "\n".join([f"• {act}" for act in activity_suggestions[detected_emotion]])
+        
+        # GỌI GEMINI AI ĐỂ TẠO PHẢN HỒI TỰ NHIÊN
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        
+        prompt = f"""
+        Bạn là trợ lý du lịch thông minh và đồng cảm. Hãy trả lời dựa trên ngữ cảnh sau:
+
+        CÂU HỎI: "{message}"
+        TÂM TRẠNG PHÁT HIỆN: {detected_emotion or "Không xác định"}
+        TÍNH NĂNG YÊU CẦU: {requested_features}
+
+        DỮ LIỆU KHÁCH SẠN ĐỀ XUẤT:
+        {hotels_info}
+
+        {activities_text}
+
+        YÊU CẦU:
+        1. ĐẦU TIÊN: Đồng cảm với tâm trạng người dùng (nếu có)
+        2. GIỚI THIỆU: Giới thiệu các khách sạn phù hợp từ danh sách trên
+        3. GIẢI THÍCH: Nói rõ vì sao những khách sạn này phù hợp với nhu cầu
+        4. KHUYẾN NGHỊ: Đề xuất hoạt động đi kèm (nếu có)
+        5. KẾT THÚC: Lời động viên/chúc du lịch vui vẻ
+
+        QUAN TRỌNG: 
+        - Giữ nguyên định dạng HTML với nút "Xem chi tiết"
+        - Dùng emoji, xuống dòng rõ ràng
+        - Giọng văn ấm áp, thân thiện
+        - KHÔNG tự ý thêm khách sạn ngoài danh sách cung cấp
+
+        Phản hồi của bạn:
         """
+        
         response = model.generate_content(prompt)
         return response.text
         
     except Exception as e:
-        return f"🤖 Xin lỗi, tôi đang gặp sự cố kỹ thuật: {str(e)}. Vui lòng thử lại sau!"
+        print(f"❌ Lỗi AI với dữ liệu CSV: {e}")
+        return get_fallback_response(message)
+
+def get_fallback_response(message):
+    """Response mẫu khi AI không hoạt động"""
+    sample_responses = {
+        "xin chào": "👋 Chào bạn! Tôi là AI trợ lý du lịch. Tôi có thể giúp bạn tìm khách sạn theo sở thích, cảm xúc, và ngân sách!",
+        "chào": "👋 Chào bạn! Hôm nay bạn muốn tìm khách sạn như thế nào?",
+        "tìm khách sạn": "🏨 Tuyệt vời! Bạn có thể cho tôi biết:\n• Thành phố bạn muốn đến?\n• Ngân sách bao nhiêu?\n• Bạn thích tiện ích gì (hồ bơi, spa, view biển...)?",
+        "buồn": "💖 Hiểu mà... Đôi khi một chuyến đi nhỏ có thể giúp ta lấy lại cân bằng! Mình gợi ý vài khách sạn có spa, view đẹp để bạn thư giãn nhé!",
+        "healing": "🌊 Tuyệt vời! Healing là lựa chọn hoàn hảo! Mình sẽ tìm các khách sạn có hồ bơi, view biển và spa để bạn thực sự thư giãn.",
+    }
+    
+    message_lower = message.lower()
+    for key, response in sample_responses.items():
+        if key in message_lower:
+            return response
+    
+    return "🤖 Hiện tôi đang tạm thời bảo trì. Bạn có thể:\n• Truy cập trang chủ để tìm khách sạn trực tiếp\n• Liên hệ hotline: 0987 654 321\n• Thử lại sau ít phút nhé! ❤️"
 
 # ==================== API CHATBOT ====================
 @app.route('/api/chat', methods=['POST'])
@@ -636,7 +794,3 @@ def update_hotel_status(name, status):
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
-
-
-
-
