@@ -80,7 +80,6 @@ def get_ai_response(message):
 
         # TẠO DANH SÁCH KHÁCH SẠN VỚI NÚT CHI TIẾT
         hotels_display = ""
-        modal_buttons = ""
         
         if not recommended_hotels.empty:
             hotels_display = "<strong>🏨 KHÁCH SẠN PHÙ HỢP:</strong><br><br>"
@@ -91,59 +90,63 @@ def get_ai_response(message):
                 location = hotel.get('location', '')
                 
                 # Thông tin cơ bản hiển thị trực tiếp
-                hotel_info = f"**{i}. {hotel['name']}**\n"
-                hotel_info += f"   ⭐ {stars} sao | 💰 {price}/đêm\n"
+                hotel_info = f"<strong>{i}. {hotel['name']}</strong><br>"
+                hotel_info += f"   ⭐ {stars} sao | 💰 {price}/đêm<br>"
+                hotel_info += f"   📍 {location}<br>"
                 
                 # Tiện ích nổi bật (hiển thị icon)
                 features_display = []
                 if str(hotel.get('pool', '')).lower() in ('true', '1', 'yes', 'có'): 
-                    features.append("🏊 Hồ bơi")
+                    features_display.append("🏊")
                 if str(hotel.get('sea', '')).lower() in ('true', '1', 'yes', 'có'): 
-                    features.append("🌅 View biển")
+                    features_display.append("🌅")
                 if str(hotel.get('spa', '')).lower() in ('true', '1', 'yes', 'có'): 
-                    features.append("💆 Spa")
+                    features_display.append("💆")
                 if str(hotel.get('buffet', '')).lower() in ('true', '1', 'yes', 'có'): 
-                    features.append("🍽️ Buffet")
+                    features_display.append("🍽️")
                 if str(hotel.get('gym', '')).lower() in ('true', '1', 'yes', 'có'): 
-                    features.append("🏋️ Gym")
+                    features_display.append("🏋️")
                 if str(hotel.get('wifi', '')).lower() in ('true', '1', 'yes', 'có'): 
-                    features.append("📶 WiFi")
+                    features_display.append("📶")
                 if str(hotel.get('parking', '')).lower() in ('true', '1', 'yes', 'có'): 
-                    features.append("🅿️ Parking")
+                    features_display.append("🅿️")
                 
                 if features_display:
-                    hotel_info += f"   🎯 {''.join(features_display)}\n"
+                    hotel_info += f"   🎯 {''.join(features_display)}<br>"
                 
+                # Tạo JSON data cho nút chi tiết
+                import json
                 hotel_json = json.dumps({
-                'name': hotel['name'],
-                'price': hotel.get('price', 0),
-                'stars': hotel.get('stars', 'N/A'),
-                'city': hotel.get('location', ''),
-                'pool': str(hotel.get('pool', '')).lower() in ('true', '1', 'yes', 'có'),
-                'gym': str(hotel.get('gym', '')).lower() in ('true', '1', 'yes', 'có'),
-                'spa': str(hotel.get('spa', '')).lower() in ('true', '1', 'yes', 'có'),
-                'sea_view': str(hotel.get('sea', '')).lower() in ('true', '1', 'yes', 'có'),
-                'buffet': str(hotel.get('buffet', '')).lower() in ('true', '1', 'yes', 'có'),
-                'description': hotel.get('description', 'Khách sạn chất lượng với dịch vụ tuyệt vời.')
-            }, ensure_ascii=False)
-            
-            hotel_info += f"""
-            <div class="hotel-card">
-                <div class="hotel-info">
-                    <strong>{hotel['name']}</strong>
-                    <small>⭐ {stars} sao | 💰 {price}/đêm</small>
+                    'name': hotel['name'],
+                    'price': hotel.get('price', 0),
+                    'stars': hotel.get('stars', 'N/A'),
+                    'city': hotel.get('location', ''),
+                    'pool': str(hotel.get('pool', '')).lower() in ('true', '1', 'yes', 'có'),
+                    'gym': str(hotel.get('gym', '')).lower() in ('true', '1', 'yes', 'có'),
+                    'spa': str(hotel.get('spa', '')).lower() in ('true', '1', 'yes', 'có'),
+                    'sea_view': str(hotel.get('sea', '')).lower() in ('true', '1', 'yes', 'có'),
+                    'buffet': str(hotel.get('buffet', '')).lower() in ('true', '1', 'yes', 'có'),
+                    'description': hotel.get('description', 'Khách sạn chất lượng với dịch vụ tuyệt vời.')
+                }, ensure_ascii=False)
+                
+                # Thêm nút chi tiết
+                hotel_info += f"""
+                <div class="hotel-card">
+                    <div class="hotel-info">
+                        <strong>{hotel['name']}</strong>
+                        <small>⭐ {stars} sao | 💰 {price}/đêm</small>
+                    </div>
+                    <button class="btn-hotel-detail-small" 
+                            data-hotel='{hotel_json}'>
+                        Chi tiết
+                    </button>
                 </div>
-                <button class="btn-hotel-detail-small" 
-                        data-hotel='{hotel_json}'>
-                    Chi tiết
-                </button>
-            </div>
-            """
-            
-            hotels_display += hotel_info + "<br>"
+                """
+                
+                hotels_display += hotel_info + "<br>"
 
-    else:
-        hotels_display = "❌ Hiện không tìm thấy khách sạn phù hợp với yêu cầu của bạn."
+        else:
+            hotels_display = "❌ Hiện không tìm thấy khách sạn phù hợp với yêu cầu của bạn."
 
         # GỌI GEMINI AI ĐỂ TẠO PHẢN HỒI TỰ NHIÊN
         model = genai.GenerativeModel('gemini-2.5-flash')
@@ -189,12 +192,8 @@ def get_ai_response(message):
                 full_response = f"""
                 <div class="ai-response">
                     {final_response}
-                    <div class="hotels-list mt-3">
-                        {hotels_display.replace('\n', '<br>')}
-                    </div>
-                    <div class="modal-buttons mt-3">
-                        {modal_buttons}
-                    </div>
+                    <br><br>
+                    {hotels_display}
                 </div>
                 """
             else:
@@ -206,7 +205,7 @@ def get_ai_response(message):
             print(f"❌ Lỗi AI request: {ai_error}")
             # Fallback với cảm xúc
             fallback_msg = f"💖 Tôi hiểu bạn đang cần tìm một nơi phù hợp. "
-            fallback_msg += f"Dưới đây là một số gợi ý cho bạn:\n\n{hotels_display}{detail_buttons}"
+            fallback_msg += f"Dưới đây là một số gợi ý cho bạn:<br><br>{hotels_display}"
             return fallback_msg
         
     except Exception as e:
@@ -839,6 +838,7 @@ def update_hotel_status(name, status):
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
