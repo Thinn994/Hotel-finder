@@ -116,12 +116,147 @@
             z-index: 1;
         }
 
+        /* === HOTEL LIST CONTAINER STYLES === */
+        #hotelListContainerId {
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 0 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .hotel-list-title {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2rem;
+            font-weight: 600;
+            background: linear-gradient(270deg, #ff8a00, #e52e71);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hotel-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 25px;
+            margin-top: 30px;
+        }
+
+        .hotel-card-large {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #333;
+        }
+
+            .hotel-card-large:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25);
+            }
+
+        .hotel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .hotel-name {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #2c3e50;
+            margin: 0;
+        }
+
+        .hotel-rating {
+            background: linear-gradient(45deg, #ff8a00, #e52e71);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .hotel-location {
+            color: #666;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .hotel-price {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #e52e71;
+            margin-bottom: 15px;
+        }
+
+        .hotel-features-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin: 12px 0;
+        }
+
+        .feature-item-large {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            color: #555;
+        }
+
+        .hotel-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .btn-detail {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            flex: 1;
+        }
+
+            .btn-detail:hover {
+                background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+                transform: translateY(-2px);
+                box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+            }
+
+        .btn-book {
+            background: linear-gradient(45deg, #ff8a00, #e52e71);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            flex: 1;
+        }
+
+            .btn-book:hover {
+                background: linear-gradient(45deg, #e57c00, #d42a6a);
+                transform: translateY(-2px);
+                box-shadow: 0 5px 15px rgba(255, 138, 0, 0.3);
+            }
+
         @keyframes fadeDown {
             from {
                 opacity: 0;
                 transform: translateY(-40px);
             }
-
             to {
                 opacity: 1;
                 transform: translateY(0);
@@ -132,11 +267,9 @@
             0% {
                 text-shadow: 0 0 10px #fff;
             }
-
             50% {
                 text-shadow: 0 0 25px #ffcc70;
             }
-
             100% {
                 text-shadow: 0 0 10px #fff;
             }
@@ -146,11 +279,9 @@
             0% {
                 background-position: 0% 50%;
             }
-
             50% {
                 background-position: 100% 50%;
             }
-
             100% {
                 background-position: 0% 50%;
             }
@@ -161,7 +292,6 @@
                 transform: scale(0.8);
                 opacity: 0;
             }
-
             to {
                 transform: scale(1);
                 opacity: 1;
@@ -241,6 +371,11 @@
                 </a>
             </div>
         </form>
+    </div>
+
+    <!-- Hotel List Container -->
+    <div id="hotelListContainerId">
+        <!-- Nội dung danh sách khách sạn sẽ được hiển thị ở đây -->
     </div>
 
     <footer>
@@ -735,11 +870,9 @@
             0% {
                 transform: scale(1);
             }
-
             50% {
                 transform: scale(1.05);
             }
-
             100% {
                 transform: scale(1);
             }
@@ -750,7 +883,6 @@
                 opacity: 0;
                 transform: translateY(20px);
             }
-
             to {
                 opacity: 1;
                 transform: translateY(0);
@@ -1087,9 +1219,19 @@
         if (hotelListContainer) {
             hotelListContainer.addEventListener('click', handleHotelDetailClick);
         }
+
+        // Hàm để cập nhật nội dung danh sách khách sạn
+        function updateHotelList(hotels_display) {
+            const container = document.getElementById('hotelListContainerId');
+            if (container) {
+                container.innerHTML = hotels_display;
+                // Gắn lại event listeners sau khi cập nhật nội dung
+                attachHotelButtonListeners();
+            }
+        }
+
+        // Ví dụ sử dụng hàm updateHotelList:
+        // updateHotelList('<h2 class="hotel-list-title">Danh sách khách sạn đề xuất</h2><div class="hotel-grid">...</div>');
     </script>
 </body>
 </html>
-
-
-
