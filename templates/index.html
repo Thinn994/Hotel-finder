@@ -1083,9 +1083,13 @@
         });
 
         // Gắn sự kiện khi trang load xong
-        document.addEventListener('click', handleHotelDetailClick);
+        const hotelListContainer = document.getElementById('hotelListContainerId'); 
+        if (hotelListContainer) {
+            hotelListContainer.addEventListener('click', handleHotelDetailClick);
+        }
     </script>
 </body>
 </html>
+
 
 
