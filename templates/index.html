@@ -1208,7 +1208,7 @@
             const toggleBtn = document.querySelector('.chatbot-toggle-btn');
 
             if (container.classList.contains('active') &&
-                !widget.contains(e.target) &&
+                !container.contains(e.target) &&
                 !toggleBtn.contains(e.target)) {
                 container.classList.remove('active');
             }
@@ -1231,5 +1231,6 @@
     </script>
 </body>
 </html>
+
 
 
