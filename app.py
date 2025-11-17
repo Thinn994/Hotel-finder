@@ -97,19 +97,19 @@ def get_ai_response(message):
                 # Tiện ích nổi bật (hiển thị icon)
                 features_display = []
                 if str(hotel.get('pool', '')).lower() in ('true', '1', 'yes', 'có'): 
-                    features.append("🏊 Hồ bơi")
+                    features_display.append("🏊 Hồ bơi")
                 if str(hotel.get('sea', '')).lower() in ('true', '1', 'yes', 'có'): 
-                    features.append("🌅 View biển")
+                    features_display.append("🌅 View biển")
                 if str(hotel.get('spa', '')).lower() in ('true', '1', 'yes', 'có'): 
-                    features.append("💆 Spa")
+                    features_display.append("💆 Spa")
                 if str(hotel.get('buffet', '')).lower() in ('true', '1', 'yes', 'có'): 
-                    features.append("🍽️ Buffet")
+                    features_display.append("🍽️ Buffet")
                 if str(hotel.get('gym', '')).lower() in ('true', '1', 'yes', 'có'): 
-                    features.append("🏋️ Gym")
+                    features_display.append("🏋️ Gym")
                 if str(hotel.get('wifi', '')).lower() in ('true', '1', 'yes', 'có'): 
-                    features.append("📶 WiFi")
+                    features_display.append("📶 WiFi")
                 if str(hotel.get('parking', '')).lower() in ('true', '1', 'yes', 'có'): 
-                    features.append("🅿️ Parking")
+                    features_display.append("🅿️ Parking")
                 
                 if features_display:
                     hotel_info += f"   🎯 {''.join(features_display)}<br>"
@@ -838,6 +838,7 @@ def update_hotel_status(name, status):
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
