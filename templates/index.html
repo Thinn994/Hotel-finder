@@ -1221,10 +1221,10 @@
         }
 
         // Hàm để cập nhật nội dung danh sách khách sạn
-        function updateHotelList(hotels_display) {
+        function updateHotelList(hotels_display_string) {
             const container = document.getElementById('hotelListContainerId');
             if (container) {
-                container.innerHTML = hotels_display;
+                document.getElementById('hotelListContainerId').innerHTML = hotels_display_string;
                 // Gắn lại event listeners sau khi cập nhật nội dung
                 attachHotelButtonListeners();
             }
@@ -1235,3 +1235,4 @@
     </script>
 </body>
 </html>
+
