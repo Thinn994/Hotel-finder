@@ -93,36 +93,53 @@ def get_ai_response(message):
                 hotel_info = f"🏨 **{hotel['name']}**\n"
                 hotel_info += f"⭐ {stars} sao | 💰 {price} VND/đêm\n"
                 
-                # Thêm các tiêu chí nổi bật
-                features = []
+                # Thêm các tiêu chí nổi bật CHO AI
+                features_ai = []
                 if str(hotel.get('pool', '')).lower() in ('true', '1', 'yes', 'có'): 
-                    features.append("🏊 hồ bơi")
+                    features_ai.append("🏊 hồ bơi")
                 if str(hotel.get('sea', '')).lower() in ('true', '1', 'yes', 'có'): 
-                    features.append("🌅 view biển")
+                    features_ai.append("🌅 view biển")
                 if str(hotel.get('spa', '')).lower() in ('true', '1', 'yes', 'có'): 
-                    features.append("💆 spa")
+                    features_ai.append("💆 spa")
                 if str(hotel.get('buffet', '')).lower() in ('true', '1', 'yes', 'có'): 
-                    features.append("🍽️ buffet")
+                    features_ai.append("🍽️ buffet")
                 if str(hotel.get('gym', '')).lower() in ('true', '1', 'yes', 'có'): 
-                    features.append("🏋️ gym")
+                    features_ai.append("🏋️ gym")
                 
-                if features:
-                    hotel_info += f"📋 Tiện ích: {', '.join(features)}\n"
+                if features_ai:
+                    hotel_info += f"📋 Tiện ích: {', '.join(features_ai)}\n"
                 
                 hotels_list_for_ai += hotel_info + "\n"
                 
-                # Tạo nút xem chi tiết nhỏ
+                # Tạo nút xem chi tiết nhỏ - CHỈ VĂN BẢN THUẦN
                 import json
                 hotel_safe = {k: (str(v) if pd.notna(v) else "") for k, v in hotel.items()}
                 hotel_json = json.dumps(hotel_safe, ensure_ascii=False)
+                
+                # Tạo thông tin cơ bản cho khách sạn HIỂN THỊ TRONG CHAT
+                features_display = []
+                if str(hotel.get('pool', '')).lower() in ('true', '1', 'yes', 'có'): 
+                    features_display.append("🏊")
+                if str(hotel.get('sea', '')).lower() in ('true', '1', 'yes', 'có'): 
+                    features_display.append("🌅")
+                if str(hotel.get('spa', '')).lower() in ('true', '1', 'yes', 'có'): 
+                    features_display.append("💆")
+                if str(hotel.get('buffet', '')).lower() in ('true', '1', 'yes', 'có'): 
+                    features_display.append("🍽️")
+                if str(hotel.get('gym', '')).lower() in ('true', '1', 'yes', 'có'): 
+                    features_display.append("🏋️")
+                
+                features_str = " ".join(features_display) if features_display else ""
+                
                 hotel_buttons_html += f'''
-                <div class="hotel-card">
-                    <div class="hotel-info">
-                        <strong>{hotel["name"]}</strong><br>
-                        <small>⭐ {stars} sao | 💰 {price} VND</small>
+                <div style="background:#f8f9fa;border:1px solid #e1e5e9;border-radius:8px;padding:6px 8px;margin:4px 0;display:flex;justify-content:space-between;align-items:center;gap:6px;max-width:100%;font-size:10px;">
+                    <div style="flex:1;min-width:0;">
+                        <strong style="color:#333;display:block;margin-bottom:1px;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{hotel["name"]}</strong>
+                        <small style="color:#666;display:block;">⭐ {stars} | 💰 {price} VND</small>
+                        <small style="color:#888;">{features_str}</small>
                     </div>
-                    <button class="btn-hotel-detail-small" data-hotel='{hotel_json}' onclick="showHotelDetail(this)">
-                        📖 Chi tiết
+                    <button class="btn-hotel-detail-small" data-hotel='{hotel_json}' onclick="showHotelDetail(this)" style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;border:none;padding:4px 6px;border-radius:4px;font-size:9px;cursor:pointer;white-space:nowrap;min-width:45px;height:20px;">
+                        Chi tiết
                     </button>
                 </div>
                 '''
@@ -753,6 +770,7 @@ def update_hotel_status(name, status):
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
