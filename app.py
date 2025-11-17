@@ -92,7 +92,6 @@ def get_ai_response(message):
                 # Thông tin cơ bản hiển thị trực tiếp
                 hotel_info = f"<strong>{i}. {hotel['name']}</strong><br>"
                 hotel_info += f"   ⭐ {stars} sao | 💰 {price}/đêm<br>"
-                hotel_info += f"   📍 {location}<br>"
                 
                 # Tiện ích nổi bật (hiển thị icon)
                 features_display = []
@@ -185,9 +184,13 @@ def get_ai_response(message):
                 }
             )
             
-            # SỬA PHẦN NÀY - Xử lý response phức tạp
             if response.text:
                 final_response = response.text.strip()
+                
+                if recommended_hotels.empty:
+                    return final_response
+                else:
+                    return final_response + "<br><br>" + hotels_display
             else:
                 # Nếu response.text không hoạt động, extract text từ parts
                 final_response = ""
@@ -824,6 +827,7 @@ def update_hotel_status(name, status):
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
