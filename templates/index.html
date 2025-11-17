@@ -1039,12 +1039,19 @@
         }
         
         function handleHotelDetailClick(e) {
+            console.log('🖱️ Click detected on:', e.target);
+            
             // Kiểm tra nếu click vào nút chi tiết
-            if (e.target.closest('.btn-hotel-detail-small')) {
-                const button = e.target.closest('.btn-hotel-detail-small');
+            const button = e.target.closest('.btn-hotel-detail-small');
+            if (button) {
+                console.log('✅ Nút chi tiết được click');
                 const hotelName = button.getAttribute('data-hotel-name');
+                console.log('🏨 Hotel name:', hotelName);
+                
                 if (hotelName) {
                     showHotelDetail(hotelName);
+                } else {
+                    console.log('❌ Không có data-hotel-name');
                 }
             }
         }
@@ -1076,3 +1083,4 @@
     </script>
 </body>
 </html>
+
