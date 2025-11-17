@@ -242,27 +242,18 @@ def api_hotel_detail(name):
         hotel_data = hotels_df[hotels_df['name'] == name]
 
         if hotel_data.empty:
-            return jsonify({"error": "Không tìm thấy khách sạn"}), 404
+            return jsonify({"success": False, "error": "Không tìm thấy khách sạn"}), 404
 
         hotel = map_hotel_row(hotel_data.iloc[0].to_dict())
-        reviews_df_local = read_csv_safe(REVIEWS_CSV)
-        hotel_reviews = reviews_df_local[reviews_df_local['hotel_name'] == name].to_dict(orient='records')
-
-        # Tính rating trung bình
-        avg_rating = (
-            round(sum(float(r.get('rating', 0)) for r in hotel_reviews) / len(hotel_reviews), 1)
-            if hotel_reviews else hotel.get('rating', 'Chưa có')
-        )
-
+        
         # Tính năng khách sạn
         features = {
-            "Buffet sáng": yes_no_icon(hotel.get("buffet")),
-            "Bể bơi": yes_no_icon(hotel.get("pool")),
-            "Phòng gym": yes_no_icon(hotel.get("gym")),
-            "Spa": yes_no_icon(hotel.get("spa")),
-            "View biển": yes_no_icon(hotel.get("sea_view") or hotel.get("sea")),
-            "WiFi miễn phí": yes_no_icon(hotel.get("wifi")),
-            "Bãi đỗ xe": yes_no_icon(hotel.get("parking"))
+            "Buffet sáng": "✅" if str(hotel.get("buffet", "")).lower() in ('true', '1', 'yes', 'có') else "❌",
+            "Bể bơi": "✅" if str(hotel.get("pool", "")).lower() in ('true', '1', 'yes', 'có') else "❌",
+            "Phòng gym": "✅" if str(hotel.get("gym", "")).lower() in ('true', '1', 'yes', 'có') else "❌",
+            "Spa": "✅" if str(hotel.get("spa", "")).lower() in ('true', '1', 'yes', 'có') else "❌",
+            "View biển": "✅" if str(hotel.get("sea", "")).lower() in ('true', '1', 'yes', 'có') else "❌",
+            "WiFi miễn phí": "✅" if str(hotel.get("wifi", "")).lower() in ('true', '1', 'yes', 'có') else "❌"
         }
 
         # Loại phòng
@@ -279,13 +270,12 @@ def api_hotel_detail(name):
             "hotel": hotel,
             "features": features,
             "rooms": rooms,
-            "reviews": hotel_reviews[:5],  # Chỉ lấy 5 review gần nhất
-            "avg_rating": avg_rating,
-            "total_reviews": len(hotel_reviews)
+            "avg_rating": hotel.get('rating', 'Chưa có'),
+            "total_reviews": 0
         })
     
     except Exception as e:
-        return jsonify({"error": f"Lỗi tải chi tiết: {str(e)}"}), 500
+        return jsonify({"success": False, "error": f"Lỗi tải chi tiết: {str(e)}"}), 500
 
 # ==================== CẤU HÌNH EMAIL ====================
 app.config.update(
@@ -838,6 +828,7 @@ def update_hotel_status(name, status):
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
