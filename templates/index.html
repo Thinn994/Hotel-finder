@@ -248,25 +248,29 @@
     </footer>
 
     <!-- Modal Chi Tiết Khách Sạn -->
-    <div class="modal fade" id="hotelDetailModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal fade" id="hotelDetailModal" tabindex="-1" aria-labelledby="hotelDetailModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="hotelModalTitle">Chi Tiết Khách Sạn</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <h5 class="modal-title" id="hotelDetailModalLabel">Chi tiết khách sạn</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body" id="hotelModalBody">
-                    <!-- Nội dung sẽ được điền bằng JavaScript -->
+                <div class="modal-body" id="hotelDetailContent">
+                    <!-- Nội dung sẽ được load bằng JavaScript -->
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p>Đang tải thông tin...</p>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
-                    <button type="button" class="btn btn-primary" id="bookHotelBtn">Đặt Phòng Ngay</button>
+                    <button type="button" class="btn btn-primary" onclick="bookHotel()">Đặt phòng ngay</button>
                 </div>
             </div>
         </div>
     </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
     <!-- === CHATBOT WIDGET === -->
     <div id="chatbotWidget" class="chatbot-widget">
@@ -810,6 +814,19 @@
                 height: 18px;
                 min-width: 40px;
             }
+
+            .hotel-detail-modal {
+                max-height: 70vh;
+                overflow-y: auto;
+            }
+            .rating-box {
+                border: 1px solid #dee2e6;
+            }
+            .review-item {
+                background: #f8f9fa;
+                padding: 8px 12px;
+                border-radius: 5px;
+            }
         }
     </style>
 
@@ -910,74 +927,101 @@
             }
         }
 
-        // Hàm hiển thị modal chi tiết khách sạn - KHÔNG CÓ HÌNH ẢNH
-        function showHotelDetail(button) {
-            try {
-                const hotelData = JSON.parse(button.getAttribute('data-hotel'));
-
-                // Điền thông tin vào modal
-                document.getElementById('hotelModalTitle').textContent = hotelData.name;
-
-                const modalBody = document.getElementById('hotelModalBody');
-                const price = parseInt(hotelData.price) || 0;
-                const stars = hotelData.stars || 'N/A';
-                const city = hotelData.city || 'N/A';
-                const description = hotelData.description || hotelData.review || 'Khách sạn tiện nghi, phục vụ chuyên nghiệp.';
-
-                modalBody.innerHTML = `
-                        <div class="hotel-modal-content">
-                            <div class="hotel-basic-info">
-                                <h4 class="price-highlight">${price.toLocaleString()} VND/đêm</h4>
-                                <p><strong>${hotelData.name}</strong></p>
-                                <p>⭐ ${stars} sao | 📍 ${city}</p>
-                                <p><strong>Trạng thái:</strong> ${hotelData.status || 'Còn phòng'} | <strong>Đánh giá:</strong> ${hotelData.rating || 'Chưa có'} ⭐</p>
-                            </div>
-
-                            <div class="hotel-features">
-                                <div class="feature-item">${hotelData.pool ? '✅' : '❌'} 🏊 Hồ bơi</div>
-                                <div class="feature-item">${hotelData.gym ? '✅' : '❌'} 🏋️ Gym</div>
-                                <div class="feature-item">${hotelData.spa ? '✅' : '❌'} 💆 Spa</div>
-                                <div class="feature-item">${(hotelData.sea_view || hotelData.sea) ? '✅' : '❌'} 🌅 View biển</div>
-                                <div class="feature-item">${hotelData.buffet ? '✅' : '❌'} 🍽️ Buffet sáng</div>
-                                <div class="feature-item">${hotelData.view ? '✅' : '❌'} 🏞️ View đẹp</div>
-                            </div>
-
-                            <h6>Mô tả:</h6>
-                            <p style="color: #333; font-size: 13px;">${description}</p>
-
-                            <h6>Loại phòng:</h6>
-                            <div class="room-type">
-                                <strong>Phòng Tiêu Chuẩn</strong><br>
-                                Giá: ${price.toLocaleString()} VND/đêm
-                            </div>
-                            <div class="room-type">
-                                <strong>Phòng Superior</strong><br>
-                                Giá: ${(price * 1.3).toLocaleString()} VND/đêm
-                            </div>
-                            <div class="room-type">
-                                <strong>Phòng Deluxe</strong><br>
-                                Giá: ${(price * 1.6).toLocaleString()} VND/đêm
-                            </div>
-                            <div class="room-type">
-                                <strong>Suite</strong><br>
-                                Giá: ${(price * 2.0).toLocaleString()} VND/đêm
+        // Hàm hiển thị modal chi tiết khách sạn
+        function showHotelDetail(hotelName) {
+            // Hiển thị modal
+            const modal = new bootstrap.Modal(document.getElementById('hotelDetailModal'));
+            modal.show();
+            
+            // Đặt tiêu đề
+            document.getElementById('hotelDetailModalLabel').textContent = hotelName;
+            
+            // Load nội dung từ API
+            fetch(`/api/hotel-detail/${encodeURIComponent(hotelName)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        renderHotelDetail(data);
+                    } else {
+                        document.getElementById('hotelDetailContent').innerHTML = 
+                            '<div class="alert alert-danger">Không thể tải thông tin khách sạn</div>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    document.getElementById('hotelDetailContent').innerHTML = 
+                        '<div class="alert alert-danger">Lỗi kết nối</div>';
+                });
+        }
+        
+        // Hàm render nội dung chi tiết
+        function renderHotelDetail(data) {
+            const hotel = data.hotel;
+            const content = `
+                <div class="hotel-detail-modal">
+                    <!-- Ảnh khách sạn -->
+                    <img src="${hotel.image || '/static/default-hotel.jpg'}" 
+                         class="img-fluid rounded mb-3" 
+                         alt="${hotel.name}"
+                         style="max-height: 300px; width: 100%; object-fit: cover;">
+                    
+                    <!-- Thông tin cơ bản -->
+                    <div class="row mb-3">
+                        <div class="col-8">
+                            <h4 class="text-primary">${hotel.name}</h4>
+                            <p class="text-muted mb-1">${hotel.city} • ⭐ ${hotel.stars} sao</p>
+                            <h5 class="text-danger fw-bold">${hotel.price}₫ / đêm</h5>
+                        </div>
+                        <div class="col-4 text-end">
+                            <div class="rating-box bg-light rounded p-2">
+                                <div class="fw-bold">⭐ ${data.avg_rating}/5</div>
+                                <small>${data.total_reviews} đánh giá</small>
                             </div>
                         </div>
-                    `;
-
-                // Xử lý nút đặt phòng
-                document.getElementById('bookHotelBtn').onclick = function () {
-                    window.location.href = `/booking/${encodeURIComponent(hotelData.name)}/Phòng Tiêu Chuẩn`;
-                };
-
-                // Hiển thị modal
-                const modal = new bootstrap.Modal(document.getElementById('hotelDetailModal'));
-                modal.show();
-
-            } catch (error) {
-                console.error('Lỗi khi hiển thị chi tiết khách sạn:', error);
-                alert('Có lỗi xảy ra khi tải thông tin khách sạn. Vui lòng thử lại.');
-            }
+                    </div>
+                    
+                    <!-- Mô tả -->
+                    <p class="mb-3">${hotel.full_desc || 'Khách sạn chất lượng với dịch vụ tuyệt vời.'}</p>
+                    
+                    <!-- Tiện nghi -->
+                    <h6>🏆 Tiện nghi nổi bật:</h6>
+                    <div class="row mb-3">
+                        ${Object.entries(data.features).map(([name, icon]) => `
+                            <div class="col-6 mb-2">${icon} ${name}</div>
+                        `).join('')}
+                    </div>
+                    
+                    <!-- Loại phòng -->
+                    <h6>🛏️ Các loại phòng:</h6>
+                    <div class="rooms-list">
+                        ${data.rooms.map(room => `
+                            <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+                                <span>${room.type}</span>
+                                <strong class="text-danger">${room.price}</strong>
+                            </div>
+                        `).join('')}
+                    </div>
+                    
+                    <!-- Đánh giá gần nhất -->
+                    ${data.reviews.length > 0 ? `
+                    <h6 class="mt-3">💬 Đánh giá gần đây:</h6>
+                    ${data.reviews.slice(0, 2).map(review => `
+                        <div class="review-item border-start border-3 border-primary ps-2 mb-2">
+                            <strong>${review.user || 'Ẩn danh'}</strong> - ⭐ ${review.rating}/5
+                            <p class="mb-0 small">${review.comment}</p>
+                        </div>
+                    `).join('')}
+                    ` : '<p class="text-muted mt-3">Chưa có đánh giá</p>'}
+                </div>
+            `;
+            
+            document.getElementById('hotelDetailContent').innerHTML = content;
+        }
+        
+        // Hàm đặt phòng
+        function bookHotel() {
+            const hotelName = document.getElementById('hotelDetailModalLabel').textContent;
+            window.location.href = `/booking?name=${encodeURIComponent(hotelName)}`;
         }
 
         // Gắn sự kiện cho các nút hotel detail
@@ -1026,4 +1070,5 @@
     </script>
 </body>
 </html>
+
 
