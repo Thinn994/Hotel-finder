@@ -83,7 +83,7 @@ def get_ai_response(message):
         modal_buttons = ""
         
         if not recommended_hotels.empty:
-            hotels_display = "**🏨 KHÁCH SẠN PHÙ HỢP:**\n\n"
+            hotels_display = "<strong>🏨 KHÁCH SẠN PHÙ HỢP:</strong><br><br>"
             
             for i, (_, hotel) in enumerate(recommended_hotels.head(3).iterrows(), 1):
                 price = f"{hotel.get('price', 0):,.0f} VND" if pd.notna(hotel.get('price')) else "Liên hệ"
@@ -114,18 +114,36 @@ def get_ai_response(message):
                 if features_display:
                     hotel_info += f"   🎯 {''.join(features_display)}\n"
                 
-                hotels_display += hotel_info
-                
-                modal_buttons += f"""
-                <button class="btn btn-outline-primary btn-sm mt-2" onclick="showHotelDetail('{hotel['name']}')">
-                    📋 Xem chi tiết {hotel['name']}
-                </button><br>
-                """
-                
-                hotels_display += "\n"
+                hotel_json = json.dumps({
+                'name': hotel['name'],
+                'price': hotel.get('price', 0),
+                'stars': hotel.get('stars', 'N/A'),
+                'city': hotel.get('location', ''),
+                'pool': str(hotel.get('pool', '')).lower() in ('true', '1', 'yes', 'có'),
+                'gym': str(hotel.get('gym', '')).lower() in ('true', '1', 'yes', 'có'),
+                'spa': str(hotel.get('spa', '')).lower() in ('true', '1', 'yes', 'có'),
+                'sea_view': str(hotel.get('sea', '')).lower() in ('true', '1', 'yes', 'có'),
+                'buffet': str(hotel.get('buffet', '')).lower() in ('true', '1', 'yes', 'có'),
+                'description': hotel.get('description', 'Khách sạn chất lượng với dịch vụ tuyệt vời.')
+            }, ensure_ascii=False)
+            
+            hotel_info += f"""
+            <div class="hotel-card">
+                <div class="hotel-info">
+                    <strong>{hotel['name']}</strong>
+                    <small>⭐ {stars} sao | 💰 {price}/đêm</small>
+                </div>
+                <button class="btn-hotel-detail-small" 
+                        data-hotel='{hotel_json}'>
+                    Chi tiết
+                </button>
+            </div>
+            """
+            
+            hotels_display += hotel_info + "<br>"
 
-        else:
-            hotels_display = "❌ Hiện không tìm thấy khách sạn phù hợp với yêu cầu của bạn."
+    else:
+        hotels_display = "❌ Hiện không tìm thấy khách sạn phù hợp với yêu cầu của bạn."
 
         # GỌI GEMINI AI ĐỂ TẠO PHẢN HỒI TỰ NHIÊN
         model = genai.GenerativeModel('gemini-2.5-flash')
@@ -197,20 +215,23 @@ def get_ai_response(message):
 
 # ==================== API CHATBOT ====================
 @app.route('/api/chat', methods=['POST'])
-def handle_chat():
-    """API xử lý tin nhắn chatbot"""
+def api_chat():
+    """API cho chatbot"""
     try:
-        data = request.json
-        user_message = data.get('message', '')
+        data = request.get_json()
+        user_message = data.get('message', '').strip()
         
         if not user_message:
-            return jsonify({'success': False, 'response': 'Vui lòng nhập tin nhắn'})
+            return jsonify({'response': 'Vui lòng nhập tin nhắn!'})
         
+        # Gọi hàm AI của bạn
         ai_response = get_ai_response(user_message)
-        return jsonify({'success': True, 'response': ai_response})
+        
+        return jsonify({'response': ai_response})
         
     except Exception as e:
-        return jsonify({'success': False, 'response': 'Lỗi hệ thống. Vui lòng thử lại!'})
+        print(f"❌ Lỗi API chat: {e}")
+        return jsonify({'response': 'Xin lỗi, tôi đang gặp sự cố kỹ thuật. Vui lòng thử lại sau!'})
 
 @app.route('/api/hotel-detail/<name>')
 def api_hotel_detail(name):
@@ -818,6 +839,7 @@ def update_hotel_status(name, status):
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
