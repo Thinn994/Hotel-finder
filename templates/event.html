@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Sự Kiện Đặc Biệt - Vòng Quay Tử Thần</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        .event-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            margin-top: 30px;
+            margin-bottom: 30px;
+        }
+        .event-header {
+            background: linear-gradient(45deg, #ff6b6b, #ff8e53);
+            color: white;
+            padding: 30px;
+            border-radius: 20px 20px 0 0;
+            text-align: center;
+        }
+        .prize-item {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 10px 0;
+            transition: all 0.3s ease;
+        }
+        .prize-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .wheel-container {
+            position: relative;
+            width: 300px;
+            height: 300px;
+            margin: 0 auto;
+        }
+        .wheel {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: conic-gradient(
+                #ff6b6b 0deg 60deg,
+                #4ecdc4 60deg 120deg,
+                #45b7d1 120deg 180deg,
+                #96ceb4 180deg 240deg,
+                #f7dc6f 240deg 300deg,
+                #f8c471 300deg 360deg
+            );
+            transition: transform 4s cubic-bezier(0.2, 0.8, 0.3, 1);
+            position: relative;
+        }
+        .wheel-pointer {
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 30px;
+            height: 40px;
+            background: #ff6b6b;
+            clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+            z-index: 10;
+        }
+        .participate-btn {
+            background: linear-gradient(45deg, #ff6b6b, #ff8e53);
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            color: white;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        .participate-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4);
+        }
+        .event-banner {
+            background: linear-gradient(90deg, #ff6b6b, #ff8e53, #ff6b6b);
+            background-size: 200% 100%;
+            animation: gradientShift 3s ease infinite;
+            padding: 15px 0;
+            border-bottom: 3px solid #ffd700;
+            color: white;
+            font-weight: bold;
+            text-align: center;
+        }
+        @keyframes gradientShift {
+            0% { background-position: 200% 0%; }
+            50% { background-position: 0% 0%; }
+            100% { background-position: 200% 0%; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Banner Sự Kiện -->
+    <div class="event-banner">
+        <div class="container">
+            🎉 THAM GIA SỰ KIỆN ĐẶC BIỆT - VÒNG QUAY TỬ THẦN 🎉
+        </div>
+    </div>
+
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <img src="https://cdn-icons-png.flaticon.com/512/2331/2331941.png" alt="Logo" width="32" class="me-2">
+                Smart Hotel Finder
+            </a>
+            <a href="/" class="btn btn-outline-light">← Quay lại Trang chủ</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="event-container">
+            <!-- Header -->
+            <div class="event-header">
+                <h1>🎯 Vòng Quay Tử Thần 🎯</h1>
+                <p class="lead">Tham gia ngay để nhận những phần quà hấp dẫn!</p>
+                <div class="event-timer">
+                    <small>Thời gian sự kiện: 01/01 - 31/08 hàng năm</small>
+                </div>
+            </div>
+
+            <div class="p-4">
+                <!-- Thông báo trạng thái -->
+                <div id="event-status" class="alert alert-info text-center">
+                    {% if session.get('user') %}
+                        <p>Xin chào, <strong>{{ session['user']['username'] }}</strong>!</p>
+                    {% else %}
+                        <p>Vui lòng đăng nhập để tham gia sự kiện</p>
+                    {% endif %}
+                </div>
+
+                <!-- Nút tham gia -->
+                <div class="text-center mb-4">
+                    {% if session.get('user') %}
+                        <button id="check-eligibility" class="btn participate-btn">
+                            🎮 Kiểm tra & Tham gia Vòng Quay
+                        </button>
+                    {% else %}
+                        <button id="login-btn" class="btn participate-btn">
+                            🔑 Đăng nhập để Tham gia
+                        </button>
+                    {% endif %}
+                </div>
+
+                <!-- Nội dung chính -->
+                <div class="row">
+                    <!-- Thông tin sự kiện -->
+                    <div class="col-md-6">
+                        <div class="card mb-4">
+                            <div class="card-header bg-danger text-white">
+                                <h5 class="mb-0">📋 Nội Quy Tham Gia</h5>
+                            </div>
+                            <div class="card-body">
+                                <ul class="list-group list-group-flush">
+                                    <li class="list-group-item">
+                                        ✅ <strong>Tài khoản phải có ít nhất 1 đặt phòng trong hệ thống</strong>
+                                    </li>
+                                    <li class="list-group-item">
+                                        📅 Chỉ tính các đặt phòng <strong>trong thời gian sự kiện (tháng 1-8)</strong>
+                                    </li>
+                                    <li class="list-group-item">
+                                        💰 Mốc 1: 500,000 VNĐ → 1 lượt quay
+                                    </li>
+                                    <li class="list-group-item">
+                                        💰 Mốc 2: 1,000,000 VNĐ → 2 lượt quay
+                                    </li>
+                                    <li class="list-group-item">
+                                        💰 Mốc 3: 2,000,000 VNĐ → 3 lượt quay
+                                    </li>
+                                    <li class="list-group-item">
+                                        💰 Mốc 4: 3,500,000 VNĐ → 4 lượt quay
+                                    </li>
+                                    <li class="list-group-item">
+                                        💰 Mốc 5: 5,000,000 VNĐ → 5 lượt quay (tối đa)
+                                    </li>
+                                    <li class="list-group-item text-info">
+                                        💡 <em>Giải thưởng từ vòng quay cũng được cộng vào tổng chi tiêu!</em>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Giải thưởng -->
+                    <div class="col-md-6">
+                        <div class="card mb-4">
+                            <div class="card-header bg-success text-white">
+                                <h5 class="mb-0">🏆 Giải Thưởng</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="prize-item">
+                                    <strong>Chúc bạn may mắn lần sau</strong>
+                                    <span class="badge bg-secondary float-end">Tỉ lệ cao</span>
+                                </div>
+                                <div class="prize-item">
+                                    <strong>50,000 VNĐ</strong>
+                                    <span class="badge bg-primary float-end">Tỉ lệ cao</span>
+                                </div>
+                                <div class="prize-item">
+                                    <strong>100,000 VNĐ</strong>
+                                    <span class="badge bg-info float-end">Tỉ lệ bình thường</span>
+                                </div>
+                                <div class="prize-item">
+                                    <strong>200,000 VNĐ</strong>
+                                    <span class="badge bg-warning float-end">Tỉ lệ ít</span>
+                                </div>
+                                <div class="prize-item">
+                                    <strong>500,000 VNĐ</strong>
+                                    <span class="badge bg-danger float-end">Tỉ lệ cực ít</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Lợi ích -->
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">💎 Lợi Ích</h5>
+                    </div>
+                    <div class="card-body">
+                        <p>Giải thưởng sẽ được cộng trực tiếp vào tổng số tiền đã chi tiêu của tài khoản, giúp:</p>
+                        <ul>
+                            <li>📈 Tăng hạng thẻ thành viên nhanh hơn</li>
+                            <li>🎁 Nhận được nhiều ưu đãi và giảm giá hơn</li>
+                            <li>✨ Trải nghiệm dịch vụ cao cấp hơn</li>
+                            <li>💰 Tích lũy thêm để đạt các mốc lượt quay tiếp theo</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Vòng Quay -->
+    <div class="modal fade" id="wheelModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">🎯 Vòng Quay Tử Thần</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <div id="wheel-result" class="alert" style="display: none;"></div>
+                    <div class="wheel-container">
+                        <div class="wheel-pointer"></div>
+                        <div class="wheel" id="prize-wheel"></div>
+                    </div>
+                    <div class="mt-3">
+                        <p id="spin-info">Bạn còn <span id="remaining-spins">0</span> lượt quay</p>
+                        <button id="spin-btn" class="btn participate-btn" disabled>QUAY</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Đăng nhập -->
+    <div class="modal fade" id="loginModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">🔑 Đăng nhập</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Vui lòng đăng nhập để tham gia sự kiện</p>
+                    <div class="text-center">
+                        <a href="/login" class="btn btn-primary">Đăng nhập</a>
+                        <a href="/register" class="btn btn-outline-secondary">Đăng ký</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Kiểm tra thời gian sự kiện
+            const now = new Date();
+            const currentMonth = now.getMonth() + 1;
+            if (currentMonth > 8) {
+                document.getElementById('event-status').innerHTML = 
+                    '<div class="alert alert-warning">Sự kiện đã kết thúc. Hẹn gặp lại vào năm sau!</div>';
+            }
+
+            // Xử lý nút đăng nhập
+            document.getElementById('login-btn')?.addEventListener('click', function() {
+                window.location.href = '/login?redirect=' + encodeURIComponent('/event');
+            });
+
+            // Xử lý kiểm tra điều kiện tham gia
+            document.getElementById('check-eligibility')?.addEventListener('click', function() {
+                const btn = this;
+                btn.disabled = true;
+                btn.innerHTML = '⏳ Đang kiểm tra...';
+                
+                fetch('/event/check-eligibility')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.eligible) {
+                            document.getElementById('remaining-spins').textContent = data.spins_remaining;
+                            document.getElementById('spin-info').innerHTML = 
+                                `Bạn còn <span id="remaining-spins">${data.spins_remaining}</span> lượt quay | Tổng chi tiêu: ${data.total_spent.toLocaleString()} VNĐ`;
+                            document.getElementById('spin-btn').disabled = false;
+                            new bootstrap.Modal(document.getElementById('wheelModal')).show();
+                        } else {
+                            let message = '';
+                            if (!data.has_bookings) {
+                                message = 'Tài khoản của bạn chưa có đặt phòng nào hoặc không tồn tại trong hệ thống.';
+                            } else if (data.total_spent === 0) {
+                                message = 'Bạn chưa có đặt phòng nào trong thời gian sự kiện (tháng 1-8).';
+                            } else if (data.spins_remaining === 0) {
+                                message = `Bạn đã sử dụng hết ${data.used_spins} lượt quay. Tổng chi tiêu: ${data.total_spent.toLocaleString()} VNĐ`;
+                            } else {
+                                message = 'Tài khoản của bạn hiện chưa đạt đủ điều kiện tham gia sự kiện.';
+                            }
+                            
+                            if (data.total_spent > 0) {
+                                message += `<br>Chi tiêu hiện tại: ${data.total_spent.toLocaleString()} VNĐ | Đã dùng: ${data.used_spins}/${data.max_spins} lượt quay`;
+                            }
+                            
+                            showAlert(message, 'warning');
+                        }
+                    })
+                    .catch(error => {
+                        showAlert('Có lỗi xảy ra khi kiểm tra điều kiện.', 'danger');
+                    })
+                    .finally(() => {
+                        btn.disabled = false;
+                        btn.innerHTML = '🎮 Kiểm tra & Tham gia Vòng Quay';
+                    });
+            });
+
+            // Xử lý vòng quay
+            document.getElementById('spin-btn').addEventListener('click', function() {
+                const btn = this;
+                btn.disabled = true;
+                btn.innerHTML = '🎯 Đang quay...';
+                
+                fetch('/event/spin-wheel', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        showAlert(data.error, 'danger');
+                        return;
+                    }
+                    
+                    const wheel = document.getElementById('prize-wheel');
+                    const resultDiv = document.getElementById('wheel-result');
+                    
+                    // Hiệu ứng quay
+                    wheel.style.transition = 'transform 4s cubic-bezier(0.2, 0.8, 0.3, 1)';
+                    wheel.style.transform = `rotate(${1800 + data.final_angle}deg)`;
+                    
+                    setTimeout(() => {
+                        resultDiv.style.display = 'block';
+                        resultDiv.className = `alert ${data.prize_value > 0 ? 'alert-success' : 'alert-warning'}`;
+                        resultDiv.innerHTML = data.prize_value > 0 ? 
+                            `🎉 Chúc mừng! Bạn đã nhận được <strong>${data.prize_value.toLocaleString()} VNĐ</strong>` :
+                            '💫 Chúc bạn may mắn lần sau!';
+                        
+                        // Cập nhật số lượt quay còn lại và thông tin
+                        document.getElementById('remaining-spins').textContent = data.spins_remaining;
+                        document.getElementById('spin-info').innerHTML = 
+                            `Bạn còn <span id="remaining-spins">${data.spins_remaining}</span> lượt quay | Tổng chi tiêu: ${data.total_spent.toLocaleString()} VNĐ`;
+                        
+                        if (data.spins_remaining > 0) {
+                            btn.disabled = false;
+                            btn.innerHTML = 'QUAY';
+                        } else {
+                            btn.innerHTML = 'HẾT LƯỢT';
+                        }
+                    }, 4000);
+                })
+                .catch(error => {
+                    showAlert('Có lỗi xảy ra khi quay thưởng.', 'danger');
+                    btn.disabled = false;
+                    btn.innerHTML = 'QUAY';
+                });
+            });
+
+            function showAlert(message, type) {
+                const alertDiv = document.createElement('div');
+                alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+                alertDiv.innerHTML = `
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                document.getElementById('event-status').appendChild(alertDiv);
+            }
+        });
+    </script>
+</body>
+</html>
