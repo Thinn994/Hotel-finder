@@ -21,8 +21,8 @@ DATA_FOLDER = os.path.join(BASE_DIR, 'data')
 os.makedirs(DATA_FOLDER, exist_ok=True)
 
 EVENT_CONFIG = {
-    'start_month': 8,    # Tháng 8
-    'end_month': 12,      # Tháng 12
+    'start_month': 1,    # Tháng 1
+    'end_month': 8,      # Tháng 8
     'prizes': [
         {'name': 'Chúc bạn may mắn lần sau', 'value': 0, 'probability': 40},
         {'name': 'Chúc bạn may mắn lần sau', 'value': 0, 'probability': 25},
@@ -1915,6 +1915,7 @@ init_event_files()
 # === KHỞI CHẠY APP ===
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
