@@ -116,9 +116,26 @@
         .status-card.ended {
             border-left-color: #6c757d;
         }
+        .test-mode-badge {
+            position: fixed;
+            top: 100px;
+            right: 20px;
+            background: #ff6b6b;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            z-index: 1000;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+        }
     </style>
 </head>
 <body>
+    <!-- Badge chế độ test -->
+    <div class="test-mode-badge">
+        🧪 CHẾ ĐỘ TEST
+    </div>
+
     <!-- Banner Sự Kiện -->
     <div class="event-banner">
         <div class="container">
@@ -150,30 +167,19 @@
             <div class="p-4">
                 <!-- Thông báo trạng thái -->
                 <div id="event-status" class="mb-4">
-                    <div class="card status-card">
+                    <div class="card status-card eligible">
                         <div class="card-body">
-                            {% if session.get('user') %}
-                                <h5 class="card-title">Xin chào, <strong>{{ session['user']['username'] }}</strong>! 👋</h5>
-                                <p class="card-text" id="status-text">Đang kiểm tra điều kiện tham gia...</p>
-                            {% else %}
-                                <h5 class="card-title">Chào mừng đến với sự kiện! 🎉</h5>
-                                <p class="card-text">Vui lòng đăng nhập để tham gia sự kiện</p>
-                            {% endif %}
+                            <h5 class="card-title">Chế độ Test 🧪</h5>
+                            <p class="card-text">Bạn có thể test vòng quay ngay lập tức!</p>
                         </div>
                     </div>
                 </div>
 
                 <!-- Nút tham gia -->
                 <div class="text-center mb-4">
-                    {% if session.get('user') %}
-                        <button id="check-eligibility" class="btn participate-btn">
-                            🎮 Kiểm tra & Tham gia Vòng Quay
-                        </button>
-                    {% else %}
-                        <button id="login-btn" class="btn participate-btn">
-                            🔑 Đăng nhập để Tham gia
-                        </button>
-                    {% endif %}
+                    <button id="start-wheel" class="btn participate-btn">
+                        🎮 Bắt Đầu Vòng Quay (Test Mode)
+                    </button>
                 </div>
 
                 <!-- Nội dung chính -->
@@ -187,10 +193,10 @@
                             <div class="card-body">
                                 <ul class="list-group list-group-flush">
                                     <li class="list-group-item">
-                                        ✅ <strong>Tài khoản phải có ít nhất 1 đặt phòng trong hệ thống</strong>
+                                        ✅ <strong>CHẾ ĐỘ TEST: Bỏ qua kiểm tra tài khoản</strong>
                                     </li>
                                     <li class="list-group-item">
-                                        📅 Chỉ tính các đặt phòng <strong>trong thời gian sự kiện (tháng 8-12)</strong>
+                                        🧪 <strong>Bạn có thể quay thử ngay lập tức</strong>
                                     </li>
                                     <li class="list-group-item">
                                         💰 Mốc 1: 500,000 VNĐ → 1 lượt quay
@@ -206,9 +212,6 @@
                                     </li>
                                     <li class="list-group-item">
                                         💰 Mốc 5: 5,000,000 VNĐ → 5 lượt quay (tối đa)
-                                    </li>
-                                    <li class="list-group-item text-info">
-                                        💡 <em>Giải thưởng từ vòng quay cũng được cộng vào tổng chi tiêu!</em>
                                     </li>
                                 </ul>
                             </div>
@@ -271,7 +274,7 @@
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">🎯 Vòng Quay Tử Thần</h5>
+                    <h5 class="modal-title">🎯 Vòng Quay Tử Thần (Test Mode)</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body text-center">
@@ -281,9 +284,9 @@
                         <div class="wheel" id="prize-wheel"></div>
                     </div>
                     <div class="mt-3">
-                        <p id="spin-info" class="fw-bold">Bạn còn <span id="remaining-spins">0</span> lượt quay</p>
-                        <p class="text-muted small" id="total-spent-info">Tổng chi tiêu: 0 VNĐ</p>
-                        <button id="spin-btn" class="btn participate-btn" disabled>QUAY</button>
+                        <p id="spin-info" class="fw-bold">Bạn có thể quay không giới hạn lượt</p>
+                        <p class="text-muted small">Chế độ test - Không kiểm tra điều kiện</p>
+                        <button id="spin-btn" class="btn participate-btn">QUAY THỬ</button>
                     </div>
                 </div>
             </div>
@@ -293,31 +296,30 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            let isEventActive = true;
-            let userEligibility = null;
+            // Danh sách giải thưởng cho test
+            const testPrizes = [
+                { name: 'Chúc bạn may mắn lần sau', value: 0, probability: 40 },
+                { name: 'Chúc bạn may mắn lần sau', value: 0, probability: 25 },
+                { name: 'Chúc bạn may mắn lần sau', value: 0, probability: 15 },
+                { name: '50,000 VNĐ', value: 50000, probability: 10 },
+                { name: '100,000 VNĐ', value: 100000, probability: 5 },
+                { name: '200,000 VNĐ', value: 200000, probability: 3 },
+                { name: '500,000 VNĐ', value: 500000, probability: 2 }
+            ];
 
-            // Kiểm tra thời gian sự kiện
-            function checkEventTime() {
-                const now = new Date();
-                const currentMonth = now.getMonth() + 1;
-                // Sự kiện từ tháng 8 đến tháng 12
-                isEventActive = currentMonth >= 8 && currentMonth <= 12;
-                
-                if (!isEventActive) {
-                    updateEventStatus('ended', 'Sự kiện đã kết thúc. Hẹn gặp lại vào năm sau! 🗓️');
+            // Lấy giải thưởng ngẫu nhiên
+            function getRandomPrize() {
+                const prizes = [];
+                for (const prize of testPrizes) {
+                    prizes.push(...Array(prize.probability).fill(prize));
                 }
-                return isEventActive;
+                return prizes[Math.floor(Math.random() * prizes.length)];
             }
 
-            // Cập nhật trạng thái sự kiện
-            function updateEventStatus(type, message) {
-                const statusCard = document.querySelector('#event-status .card');
-                const statusText = document.getElementById('status-text');
-                
-                statusCard.className = 'card status-card ' + type;
-                if (statusText) {
-                    statusText.textContent = message;
-                }
+            // Tính góc quay dựa trên giải thưởng
+            function getPrizeAngle(prizeIndex) {
+                const sectorAngle = 360 / testPrizes.length;
+                return 360 - (prizeIndex * sectorAngle + Math.random() * sectorAngle * 0.8 + sectorAngle * 0.1);
             }
 
             // Hiển thị thông báo
@@ -338,157 +340,62 @@
                 }, 5000);
             }
 
-            // Kiểm tra điều kiện tham gia
-            function checkEligibility() {
-                return fetch('/event/check-eligibility')
-                    .then(response => response.json())
-                    .then(data => {
-                        userEligibility = data;
-                        
-                        if (data.eligible) {
-                            updateEventStatus('eligible', 
-                                `✅ Bạn đủ điều kiện tham gia! Còn ${data.spins_remaining} lượt quay. Tổng chi tiêu: ${data.total_spent.toLocaleString()} VNĐ`);
-                        } else {
-                            let message = '❌ Tài khoản của bạn chưa đủ điều kiện tham gia sự kiện.';
-                            
-                            if (!data.has_bookings) {
-                                message = '❌ Tài khoản của bạn chưa có đặt phòng nào trong hệ thống.';
-                            } else if (data.total_spent === 0) {
-                                message = '❌ Bạn chưa có đặt phòng nào trong thời gian sự kiện (tháng 8-12).';
-                            } else if (data.spins_remaining === 0) {
-                                message = `❌ Bạn đã sử dụng hết ${data.used_spins} lượt quay.`;
-                            }
-                            
-                            if (data.total_spent > 0) {
-                                message += `<br>💰 Chi tiêu hiện tại: ${data.total_spent.toLocaleString()} VNĐ | Đã dùng: ${data.used_spins}/${data.max_spins} lượt quay`;
-                            }
-                            
-                            updateEventStatus('not-eligible', message);
-                        }
-                        return data;
-                    })
-                    .catch(error => {
-                        console.error('Error checking eligibility:', error);
-                        showAlert('❌ Có lỗi xảy ra khi kiểm tra điều kiện.', 'danger');
-                        return null;
-                    });
-            }
-
-            // Khởi tạo
-            function initialize() {
-                checkEventTime();
-                
-                // Nếu user đã đăng nhập, kiểm tra điều kiện ngay
-                {% if session.get('user') %}
-                checkEligibility();
-                {% endif %}
-            }
-
-            // Xử lý nút đăng nhập
-            document.getElementById('login-btn')?.addEventListener('click', function() {
-                if (!isEventActive) {
-                    showAlert('🗓️ Đã hết thời gian sự kiện. Hẹn gặp lại bạn vào năm sau!', 'warning');
-                    return;
-                }
-                window.location.href = '/login?redirect=' + encodeURIComponent('/event');
-            });
-
-            // Xử lý kiểm tra điều kiện tham gia
-            document.getElementById('check-eligibility')?.addEventListener('click', function() {
-                if (!isEventActive) {
-                    showAlert('🗓️ Sự kiện đã kết thúc. Không thể tham gia.', 'warning');
-                    return;
-                }
-
-                const btn = this;
-                btn.disabled = true;
-                btn.innerHTML = '⏳ Đang kiểm tra...';
-                
-                checkEligibility().then(data => {
-                    if (data && data.eligible) {
-                        // Hiển thị modal vòng quay
-                        document.getElementById('remaining-spins').textContent = data.spins_remaining;
-                        document.getElementById('total-spent-info').textContent = 
-                            `Tổng chi tiêu: ${data.total_spent.toLocaleString()} VNĐ`;
-                        document.getElementById('spin-btn').disabled = false;
-                        
-                        const modal = new bootstrap.Modal(document.getElementById('wheelModal'));
-                        modal.show();
-                    } else if (data) {
-                        showAlert(
-                            `❌ Tài khoản của bạn chưa đủ điều kiện tham gia sự kiện.\n` +
-                            `💰 Chi tiêu hiện tại: ${data.total_spent.toLocaleString()} VNĐ\n` +
-                            `🎯 Đã dùng: ${data.used_spins}/${data.max_spins} lượt quay`, 
-                            'warning'
-                        );
-                    }
-                }).finally(() => {
-                    btn.disabled = false;
-                    btn.innerHTML = '🎮 Kiểm tra & Tham gia Vòng Quay';
-                });
+            // Xử lý bắt đầu vòng quay
+            document.getElementById('start-wheel').addEventListener('click', function() {
+                const modal = new bootstrap.Modal(document.getElementById('wheelModal'));
+                modal.show();
             });
 
             // Xử lý vòng quay
             document.getElementById('spin-btn').addEventListener('click', function() {
                 const btn = this;
+                const wheel = document.getElementById('prize-wheel');
+                const resultDiv = document.getElementById('wheel-result');
+                
                 btn.disabled = true;
                 btn.innerHTML = '🎯 Đang quay...';
                 
-                fetch('/event/spin-wheel', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
+                // Ẩn kết quả cũ
+                resultDiv.style.display = 'none';
+                
+                // Chọn giải thưởng ngẫu nhiên
+                const prize = getRandomPrize();
+                const prizeIndex = testPrizes.findIndex(p => p.value === prize.value);
+                const finalAngle = getPrizeAngle(prizeIndex);
+                
+                // Hiệu ứng quay
+                wheel.style.transition = 'transform 4s cubic-bezier(0.2, 0.8, 0.3, 1)';
+                wheel.style.transform = `rotate(${1800 + finalAngle}deg)`;
+                
+                setTimeout(() => {
+                    // Hiển thị kết quả
+                    resultDiv.style.display = 'block';
+                    resultDiv.className = `alert ${prize.value > 0 ? 'alert-success' : 'alert-warning'}`;
+                    
+                    if (prize.value > 0) {
+                        resultDiv.innerHTML = `
+                            🎉 <strong>CHÚC MỪNG!</strong><br>
+                            Bạn đã nhận được: <strong>${prize.value.toLocaleString()} VNĐ</strong><br>
+                            <small class="text-muted">(Chế độ test - giải thưởng không được lưu)</small>
+                        `;
+                    } else {
+                        resultDiv.innerHTML = `
+                            💫 <strong>CHÚC BẠN MAY MẮN LẦN SAU!</strong><br>
+                            <small class="text-muted">Hãy thử lại nhé!</small>
+                        `;
                     }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.error) {
-                        showAlert('❌ ' + data.error, 'danger');
-                        return;
-                    }
                     
-                    const wheel = document.getElementById('prize-wheel');
-                    const resultDiv = document.getElementById('wheel-result');
-                    
-                    // Hiệu ứng quay
-                    wheel.style.transition = 'transform 4s cubic-bezier(0.2, 0.8, 0.3, 1)';
-                    wheel.style.transform = `rotate(${1800 + data.final_angle}deg)`;
-                    
+                    // Cho phép quay lại
                     setTimeout(() => {
-                        resultDiv.style.display = 'block';
-                        resultDiv.className = `alert ${data.prize_value > 0 ? 'alert-success' : 'alert-warning'}`;
-                        resultDiv.innerHTML = data.prize_value > 0 ? 
-                            `🎉 Chúc mừng! Bạn đã nhận được <strong>${data.prize_value.toLocaleString()} VNĐ</strong>` :
-                            '💫 Chúc bạn may mắn lần sau!';
-                        
-                        // Cập nhật số lượt quay còn lại và thông tin
-                        document.getElementById('remaining-spins').textContent = data.spins_remaining;
-                        document.getElementById('total-spent-info').textContent = 
-                            `Tổng chi tiêu: ${data.total_spent.toLocaleString()} VNĐ`;
-                        
-                        // Cập nhật trạng thái chính
-                        if (data.spins_remaining > 0) {
-                            updateEventStatus('eligible', 
-                                `✅ Bạn đủ điều kiện tham gia! Còn ${data.spins_remaining} lượt quay. Tổng chi tiêu: ${data.total_spent.toLocaleString()} VNĐ`);
-                            btn.disabled = false;
-                            btn.innerHTML = 'QUAY LẦN NỮA';
-                        } else {
-                            updateEventStatus('not-eligible', 
-                                `❌ Bạn đã sử dụng hết lượt quay. Tổng chi tiêu: ${data.total_spent.toLocaleString()} VNĐ`);
-                            btn.innerHTML = 'HẾT LƯỢT';
-                        }
-                    }, 4000);
-                })
-                .catch(error => {
-                    console.error('Error spinning wheel:', error);
-                    showAlert('❌ Có lỗi xảy ra khi quay thưởng.', 'danger');
-                    btn.disabled = false;
-                    btn.innerHTML = 'QUAY';
-                });
+                        btn.disabled = false;
+                        btn.innerHTML = 'QUAY LẦN NỮA';
+                    }, 1000);
+                    
+                }, 4000);
             });
 
-            // Khởi chạy
-            initialize();
+            // Thông báo chế độ test
+            showAlert('🧪 <strong>CHẾ ĐỘ TEST ĐANG BẬT</strong><br>Bạn có thể test vòng quay mà không cần kiểm tra điều kiện tài khoản.', 'info', true);
         });
     </script>
 </body>
