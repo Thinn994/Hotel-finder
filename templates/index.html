@@ -295,7 +295,7 @@
             const eventBanner = document.getElementById('event-banner');
             
             // Ẩn banner nếu không trong thời gian sự kiện (tháng 9-12)
-            if (currentMonth > 8) {
+            if (currentMonth < 8) {
                 eventBanner.style.display = 'none';
             }
         });
@@ -620,4 +620,5 @@
     </div>
 </body>
 </html>
+
 
