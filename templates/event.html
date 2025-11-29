@@ -41,8 +41,8 @@
         }
         .wheel-container {
             position: relative;
-            width: 300px;
-            height: 300px;
+            width: 350px;
+            height: 350px;
             margin: 0 auto;
         }
         .wheel {
@@ -57,19 +57,32 @@
                 #f7dc6f 240deg 300deg,
                 #f8c471 300deg 360deg
             );
-            transition: transform 4s cubic-bezier(0.2, 0.8, 0.3, 1);
+            transition: transform 5s cubic-bezier(0.1, 0.8, 0.2, 1);
             position: relative;
+            border: 8px solid #ffd700;
+            box-shadow: 0 0 20px rgba(0,0,0,0.3);
         }
         .wheel-pointer {
             position: absolute;
-            top: -20px;
+            bottom: -25px;
             left: 50%;
             transform: translateX(-50%);
-            width: 30px;
-            height: 40px;
+            width: 40px;
+            height: 50px;
             background: #ff6b6b;
-            clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+            clip-path: polygon(0% 0%, 100% 0%, 50% 100%);
             z-index: 10;
+            filter: drop-shadow(0 3px 5px rgba(0,0,0,0.3));
+        }
+        .prize-label {
+            position: absolute;
+            color: white;
+            font-weight: bold;
+            font-size: 12px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
+            transform-origin: center;
+            text-align: center;
+            width: 80px;
         }
         .participate-btn {
             background: linear-gradient(45deg, #ff6b6b, #ff8e53);
@@ -127,6 +140,11 @@
             font-weight: bold;
             z-index: 1000;
             box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+        }
+        .spin-count {
+            font-size: 14px;
+            color: #6c757d;
+            margin-top: 10px;
         }
     </style>
 </head>
@@ -281,11 +299,14 @@
                     <div id="wheel-result" class="alert" style="display: none;"></div>
                     <div class="wheel-container">
                         <div class="wheel-pointer"></div>
-                        <div class="wheel" id="prize-wheel"></div>
+                        <div class="wheel" id="prize-wheel">
+                            <!-- Các nhãn giải thưởng sẽ được thêm bằng JavaScript -->
+                        </div>
                     </div>
                     <div class="mt-3">
                         <p id="spin-info" class="fw-bold">Bạn có thể quay không giới hạn lượt</p>
                         <p class="text-muted small">Chế độ test - Không kiểm tra điều kiện</p>
+                        <div class="spin-count" id="spin-count">Đã quay: 0 lần</div>
                         <button id="spin-btn" class="btn participate-btn">QUAY THỬ</button>
                     </div>
                 </div>
@@ -307,6 +328,30 @@
                 { name: '500,000 VNĐ', value: 500000, probability: 2 }
             ];
 
+            let spinCount = 0;
+            let isSpinning = false;
+
+            // Tạo nhãn giải thưởng trên vòng quay
+            function createPrizeLabels() {
+                const wheel = document.getElementById('prize-wheel');
+                const sectorAngle = 360 / testPrizes.length;
+                const radius = 150; // Bán kính vòng quay
+
+                testPrizes.forEach((prize, index) => {
+                    const angle = (index * sectorAngle + sectorAngle / 2) * Math.PI / 180;
+                    const x = Math.cos(angle) * (radius - 40);
+                    const y = Math.sin(angle) * (radius - 40);
+                    
+                    const label = document.createElement('div');
+                    label.className = 'prize-label';
+                    label.style.transform = `translate(${x}px, ${y}px) rotate(${index * sectorAngle + sectorAngle / 2}deg)`;
+                    label.textContent = prize.value > 0 ? `${prize.value.toLocaleString()} VNĐ` : 'May mắn';
+                    label.title = prize.name;
+                    
+                    wheel.appendChild(label);
+                });
+            }
+
             // Lấy giải thưởng ngẫu nhiên
             function getRandomPrize() {
                 const prizes = [];
@@ -319,7 +364,8 @@
             // Tính góc quay dựa trên giải thưởng
             function getPrizeAngle(prizeIndex) {
                 const sectorAngle = 360 / testPrizes.length;
-                return 360 - (prizeIndex * sectorAngle + Math.random() * sectorAngle * 0.8 + sectorAngle * 0.1);
+                // Thêm độ ngẫu nhiên trong sector
+                return 360 - (prizeIndex * sectorAngle + Math.random() * sectorAngle * 0.7 + sectorAngle * 0.15);
             }
 
             // Hiển thị thông báo
@@ -344,16 +390,27 @@
             document.getElementById('start-wheel').addEventListener('click', function() {
                 const modal = new bootstrap.Modal(document.getElementById('wheelModal'));
                 modal.show();
+                
+                // Tạo nhãn giải thưởng khi modal hiển thị
+                setTimeout(createPrizeLabels, 100);
             });
 
             // Xử lý vòng quay
             document.getElementById('spin-btn').addEventListener('click', function() {
+                if (isSpinning) return;
+                
                 const btn = this;
                 const wheel = document.getElementById('prize-wheel');
                 const resultDiv = document.getElementById('wheel-result');
+                const spinCountElement = document.getElementById('spin-count');
                 
+                isSpinning = true;
                 btn.disabled = true;
                 btn.innerHTML = '🎯 Đang quay...';
+                
+                // Tăng số lần quay
+                spinCount++;
+                spinCountElement.textContent = `Đã quay: ${spinCount} lần`;
                 
                 // Ẩn kết quả cũ
                 resultDiv.style.display = 'none';
@@ -363,9 +420,21 @@
                 const prizeIndex = testPrizes.findIndex(p => p.value === prize.value);
                 const finalAngle = getPrizeAngle(prizeIndex);
                 
-                // Hiệu ứng quay
-                wheel.style.transition = 'transform 4s cubic-bezier(0.2, 0.8, 0.3, 1)';
-                wheel.style.transform = `rotate(${1800 + finalAngle}deg)`;
+                // Tính số vòng quay dựa trên số lần quay trước (càng quay nhiều càng quay mạnh hơn)
+                const baseRotations = 5 + Math.min(spinCount * 0.5, 10); // Từ 5 đến 15 vòng
+                const totalRotation = baseRotations * 360 + finalAngle;
+                
+                // Hiệu ứng quay với thời gian tăng dần
+                const spinDuration = 3 + Math.min(spinCount * 0.2, 2); // Từ 3 đến 5 giây
+                
+                wheel.style.transition = `transform ${spinDuration}s cubic-bezier(0.1, 0.8, 0.2, 1)`;
+                wheel.style.transform = `rotate(${totalRotation}deg)`;
+                
+                // Hiệu ứng rung lắc nhẹ khi bắt đầu quay
+                wheel.style.animation = 'shake 0.3s ease';
+                setTimeout(() => {
+                    wheel.style.animation = '';
+                }, 300);
                 
                 setTimeout(() => {
                     // Hiển thị kết quả
@@ -381,18 +450,32 @@
                     } else {
                         resultDiv.innerHTML = `
                             💫 <strong>CHÚC BẠN MAY MẮN LẦN SAU!</strong><br>
-                            <small class="text-muted">Hãy thử lại nhé!</small>
+                            <small class="text-muted">Hãy thử lại nhé! Số lần quay càng nhiều, vòng quay càng mạnh!</small>
                         `;
                     }
                     
                     // Cho phép quay lại
                     setTimeout(() => {
+                        isSpinning = false;
                         btn.disabled = false;
                         btn.innerHTML = 'QUAY LẦN NỮA';
                     }, 1000);
                     
-                }, 4000);
+                }, spinDuration * 1000);
             });
+
+            // Thêm CSS animation cho hiệu ứng rung
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes shake {
+                    0% { transform: rotate(0deg); }
+                    25% { transform: rotate(2deg); }
+                    50% { transform: rotate(-2deg); }
+                    75% { transform: rotate(1deg); }
+                    100% { transform: rotate(0deg); }
+                }
+            `;
+            document.head.appendChild(style);
 
             // Thông báo chế độ test
             showAlert('🧪 <strong>CHẾ ĐỘ TEST ĐANG BẬT</strong><br>Bạn có thể test vòng quay mà không cần kiểm tra điều kiện tài khoản.', 'info', true);
