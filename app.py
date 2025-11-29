@@ -12,6 +12,11 @@ import google.generativeai as genai
 # -------------------------
 # CẤU HÌNH SỰ KIỆN VÒNG QUAY TỬ THẦN
 # -------------------------
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_FOLDER = os.path.join(BASE_DIR, 'data')
+os.makedirs(DATA_FOLDER, exist_ok=True)
+
 EVENT_CONFIG = {
     'start_month': 8,    # Tháng 8
     'end_month': 12,      # Tháng 12
@@ -1907,6 +1912,7 @@ init_event_files()
 # === KHỞI CHẠY APP ===
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
