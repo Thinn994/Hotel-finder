@@ -27,22 +27,9 @@ bookings_db = []
 # -------------------------
 # HÀM HỖ TRỢ
 # -------------------------
+# Tính rank
 def get_user_rank(total_spent):
-    if total_spent >= 20_000_000:
-        return "Bạch kim"
-    elif total_spent >= 8_000_000:
-        return "Vàng"
-    elif total_spent >= 3_000_000:
-        return "Bạc"
-    else:
-        return "Đồng"
-
-def get_discounted_price(rank, base_price):
-    discount = {"Đồng": 0, "Bạc": 0.05, "Vàng": 0.1, "Bạch kim": 0.2}
-    return int(base_price * (1 - discount.get(rank, 0)))
-
-# --- LOGIC TÍNH RANK (XẾP HẠNG) ---
-def get_user_rank_info(total_spent):
+    """Trả về thông tin chi tiết để giao diện hiển thị màu sắc"""
     if total_spent >= 20000000:
         return {"name": "Bạch Kim", "class": "rank-platinum", "icon": "fa-gem"}
     elif total_spent >= 8000000:
@@ -51,15 +38,6 @@ def get_user_rank_info(total_spent):
         return {"name": "Bạc", "class": "rank-silver", "icon": "fa-medal"}
     else:
         return {"name": "Đồng", "class": "rank-bronze", "icon": "fa-shield"}
-
-def get_demo_user():
-    user = {
-        "name": "Huy VP",
-        "avatar": "https://i.pravatar.cc/150?img=12",
-        "total_spent": 25000000  
-    }
-    user.update(get_user_rank_info(user['total_spent']))
-    return user
 # -------------------------
 # HỖ TRỢ USER CSV
 # -------------------------
@@ -108,6 +86,19 @@ users_db = load_users()
 # -------------------------
 
 # Trang chủ + danh sách khách sạn
+@app.route('/')
+def index():
+    user_demo = {
+        "name": "Huy Vip Pro",
+        "avatar": "https://i.pravatar.cc/150?img=3",
+        "total_spent": 25000000 # <-- Sửa số này để test các Rank khác nhau
+    }
+    # Gộp thông tin rank vào user
+    user_demo.update(get_user_rank(user_demo['total_spent']))
+
+    # Truyền biến user vào template
+    return render_template('index.html', hotels=hotels.to_csv, user=user_demo)
+
 @app.route("/")
 def index():
     hotels = [
