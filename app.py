@@ -2,7 +2,6 @@ import os
 import re
 import ast
 import tempfile
-import random
 from datetime import datetime
 import pandas as pd
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
@@ -42,8 +41,25 @@ def get_discounted_price(rank, base_price):
     discount = {"Đồng": 0, "Bạc": 0.05, "Vàng": 0.1, "Bạch kim": 0.2}
     return int(base_price * (1 - discount.get(rank, 0)))
 
-def generate_booking_code():
-    return str(random.randint(10000000, 99999999))
+# --- LOGIC TÍNH RANK (XẾP HẠNG) ---
+def get_user_rank_info(total_spent):
+    if total_spent >= 20000000:
+        return {"name": "Bạch Kim", "class": "rank-platinum", "icon": "fa-gem"}
+    elif total_spent >= 8000000:
+        return {"name": "Vàng", "class": "rank-gold", "icon": "fa-crown"}
+    elif total_spent >= 3000000:
+        return {"name": "Bạc", "class": "rank-silver", "icon": "fa-medal"}
+    else:
+        return {"name": "Đồng", "class": "rank-bronze", "icon": "fa-shield"}
+
+def get_demo_user():
+    user = {
+        "name": "Huy VP",
+        "avatar": "https://i.pravatar.cc/150?img=12",
+        "total_spent": 25000000  
+    }
+    user.update(get_user_rank_info(user['total_spent']))
+    return user
 # -------------------------
 # HỖ TRỢ USER CSV
 # -------------------------
@@ -589,7 +605,6 @@ def add_review(name):
 
 # === TRANG ĐẶT PHÒNG ===
 @app.route('/booking/<name>/<room_type>', methods=['GET', 'POST'])
-@app.route('/booking/<name>/<room_type>', methods=['GET', 'POST'])
 def booking(name, room_type):
     hotels_df = read_csv_safe(HOTELS_CSV)
     hotels_df['rooms_available'] = hotels_df.get('rooms_available', 0).astype(int)
@@ -604,41 +619,33 @@ def booking(name, room_type):
     is_available = hotel['status'].lower() == 'còn'
     flash(f"Trạng thái phòng hiện tại: {hotel['status']}", "info")
 
-    # Lấy rank & giá giảm
+    # ✅ LẤY RANK & TÍNH GIÁ GIẢM CHO CẢ GET + POST
     user_rank = session.get('user', {}).get('rank', 'Đồng')
     base_price = float(hotel.get('price', 0))
     discounted_price = get_discounted_price(user_rank, base_price)
 
     if request.method == 'POST':
-        # Lấy thông tin người đặt
-        username = session.get('user', {}).get('username', 'Khách vãng lai')
-        email = request.form.get('email', '').strip()  # email từ form, bắt buộc điền nếu chưa đăng nhập
-        fullname = request.form['fullname'].strip()
-        phone = request.form['phone'].strip()
-        num_adults = max(int(request.form.get('adults', 1)), 1)
-        num_children = max(int(request.form.get('children', 0)), 0)
-        checkin = request.form['checkin']
-        note = request.form.get('note', '').strip()
+        user_rank = session['user'].get('rank', 'Đồng')
+        discounted_price = get_discounted_price(user_rank, hotel.get('price', 0))
 
         info = {
-            "username": username,
+            "username": session['user']['username'],
             "hotel_name": name,
             "room_type": room_type,
             "price": float(request.form.get('price', discounted_price)),
-            "user_name": fullname,
-            "phone": phone,
-            "email": email,
-            "num_adults": num_adults,
-            "num_children": num_children,
-            "checkin_date": checkin,
+            "user_name": request.form['fullname'].strip(),
+            "phone": request.form['phone'].strip(),
+            "email": session['user']['email'],
+            "num_adults": max(int(request.form.get('adults', 1)), 1),
+            "num_children": max(int(request.form.get('children', 0)), 0),
+            "checkin_date": request.form['checkin'],
             "nights": 1,
-            "special_requests": note,
+            "special_requests": request.form.get('note', '').strip(),
             "booking_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "status": "Chờ xác nhận",
-            "booking_code": generate_booking_code()
+            "status": "Chờ xác nhận"
         }
 
-        # Lưu booking vào CSV
+        # --- 1. Lưu booking vào CSV ---
         try:
             df = pd.read_csv(BOOKINGS_CSV, encoding="utf-8-sig")
         except FileNotFoundError:
@@ -646,45 +653,33 @@ def booking(name, room_type):
         df = pd.concat([df, pd.DataFrame([info])], ignore_index=True)
         df.to_csv(BOOKINGS_CSV, index=False, encoding="utf-8-sig")
 
-        # Cập nhật user session & total_spent nếu đăng nhập
-        if "user" in session:
-            if username in users_db:
-                users_db[username]['total_spent'] += info['price']
-                save_users(users_db)
-                session['user']['rank'] = get_user_rank(users_db[username]['total_spent'])
+        # --- 2. Cập nhật tổng chi tiêu và history trong users_db + users.csv ---
+        username = session['user']['username']
+        if username in users_db:
+            users_db[username]['total_spent'] += info['price']
+            users_db[username]['history'].append(info)
 
-        # Gửi email cho khách nếu có
-        if email:
-            try:
-                msg_user = Message(
-                    subject="Xác nhận đặt phòng - Hotel Pinder",
-                    recipients=[email]
-                )
-                msg_user.html = render_template("msg_user.html", info=info)
-                mail.send(msg_user)
-            except Exception as e:
-                print(f"Lỗi gửi email cho khách: {e}")
+            # Cập nhật CSV users
+            df_users = pd.DataFrame(users_db).T
+            df_users.to_csv(USERS_CSV, index_label='username', encoding='utf-8-sig')
 
-        # Gửi email cho admin
+            # Cập nhật session rank ngay lập tức
+            session['user']['rank'] = get_user_rank(users_db[username]['total_spent'])
+
+        # --- 3. Gửi email ---
         try:
-            msg_admin = Message(
-                subject=f"Đơn đặt phòng mới tại {info['hotel_name']}",
-                recipients=["hotelpinder@gmail.com"]
-            )
-            msg_admin.html = f"""
-                <h3>Đơn đặt phòng mới</h3>
-                <p>Khách sạn: {info['hotel_name']}</p>
-                <p>Người đặt: {info['user_name']}</p>
-                <p>Email: {info['email']}</p>
-                <p>SĐT: {info['phone']}</p>
-                <p>Phòng: {info['room_type']}</p>
-                <p>Ngày nhận: {info['checkin_date']}</p>
-                <p>Số đêm: {info['nights']}</p>
-                <p>Người lớn: {info['num_adults']} | Trẻ em: {info['num_children']}</p>
-                <p>Ghi chú: {info['special_requests']}</p>
-                <p>Giá: {info['price']}</p>
-                <p>Mã đặt phòng: {info['booking_code']}</p>
-            """
+            if info["email"]:
+                msg_user = Message(subject="Xác nhận đặt phòng - Hotel Pinder",
+                                   recipients=[info["email"]])
+                msg_user.html = f"""..."""
+                mail.send(msg_user)
+        except Exception as e:
+            print(f"Lỗi gửi email cho khách: {e}")
+
+        try:
+            msg_admin = Message(subject=f"Đơn đặt phòng mới tại {info['hotel_name']}",
+                                recipients=["hotelpinder@gmail.com"])
+            msg_admin.html = f"""..."""
             mail.send(msg_admin)
         except Exception as e:
             print(f"Lỗi gửi email admin: {e}")
@@ -694,7 +689,7 @@ def booking(name, room_type):
 
     # GET request, hiển thị form booking
     return render_template('booking.html', hotel=hotel, room_type=room_type, 
-                           is_available=is_available, discounted_price=discounted_price)
+                       is_available=is_available, discounted_price=discounted_price)
 
 # === LỊCH SỬ ĐẶT PHÒNG ===
 @app.route("/history")
@@ -944,7 +939,7 @@ try:
     model = genai.GenerativeModel('gemini-2.5-flash')
 except Exception as e:
     print(f"Lỗi khởi tạo Gemini: {e}")
-    model = None # Đặt là None để kiểm tra sau
+    model = None 
 # ------------------------
 
 @app.route('/ai_chat')
@@ -960,7 +955,7 @@ def api_chat():
     try:
         user_query = request.json.get('query')
         include_hotels = request.json.get('include_hotels', True)
-        conversation_history = request.json.get('history', [])  # Lấy lịch sử chat
+        conversation_history = request.json.get('history', [])  
         
         if not user_query:
             return jsonify({"error": "Missing query"}), 400
@@ -1464,52 +1459,36 @@ def should_show_hotel_cards(ai_response, filtered_hotels, target_city):
     
     return has_hotel_mentions or city_mentioned
 
-def normalize_city_name(city_name):
-    """Chuẩn hóa tên thành phố để so sánh"""
-    if not city_name:
-        return ""
-    
-    city_mapping = {
-        'hà nội': 'Hanoi', 'hanoi': 'Hanoi',
-        'đà nẵng': 'Da Nang', 'danang': 'Da Nang', 
-        'nha trang': 'Nha Trang', 'nhatrang': 'Nha Trang',
-        'hồ chí minh': 'Ho Chi Minh', 'ho chi minh': 'Ho Chi Minh',
-        'sài gòn': 'Ho Chi Minh'
-    }
-    
-    city_lower = city_name.lower().strip()
-    return city_mapping.get(city_lower, city_name)
-
-def smart_hotel_filtering_with_city_constraint(hotels_data, reviews_data, user_query, query_analysis, target_city):
-    """Lọc khách sạn thông minh với ràng buộc thành phố - FIXED VERSION"""
+def smart_hotel_filtering(hotels_data, reviews_data, user_query, query_analysis):
+    """Lọc khách sạn thông minh - FIX ĐỒNG BỘ VỚI AI"""
     query_lower = query_analysis.get('normalized_query', user_query.lower())
     scored_hotels = []
     
     # Xác định tiêu chí từ query
+    target_city = extract_city_from_query(query_lower)
     budget_range = extract_budget_from_query(query_lower)
     amenities_needed = extract_amenities_from_query(query_lower)
     hotel_type = extract_hotel_type_from_query(query_lower)
     
-    print(f"🔍 Smart filtering with city constraint - City: {target_city}")
-    print(f"🔍 Available hotels in target city: {[h['name'] for h in hotels_data if h.get('city', '').lower() == target_city.lower()]}")
+    print(f"🔍 Smart filtering - City: {target_city}, Query: {query_lower}")
     
     for hotel in hotels_data:
-        hotel_city = hotel.get('city', '').strip()
-        
-        # Sử dụng hàm chuẩn hóa để so sánh
-        hotel_city_normalized = normalize_city_name(hotel_city)
-        target_city_normalized = normalize_city_name(target_city) if target_city else ""
-        
-        # RÀNG BUỘC QUAN TRỌNG: So sánh đã được chuẩn hóa
-        if target_city and hotel_city_normalized != target_city_normalized:
-            print(f"❌ City mismatch - Skipping: {hotel['name']} ({hotel_city}) vs {target_city}")
-            continue
-        
         score = 0
+        hotel_city = hotel.get('city', '').lower().strip()
         
-        # Điểm cơ bản cho khách sạn cùng thành phố
-        score += 10
-        print(f"✅ City match: {hotel['name']} in {hotel_city}")
+        # ĐIỂM QUAN TRỌNG: Thành phố (bắt buộc nếu có target)
+        if target_city:
+            target_city_lower = target_city.lower()
+            if hotel_city == target_city_lower:
+                score += 20  # Tăng điểm mạnh cho khớp chính xác
+                print(f"🎯 Exact city match: {hotel['name']} in {hotel_city}")
+            else:
+                # Nếu không khớp thành phố, KHÔNG HIỂN THỊ
+                print(f"❌ City mismatch - Skipping: {hotel['name']} ({hotel_city}) vs {target_city_lower}")
+                continue  # Bỏ qua hoàn toàn nếu không khớp thành phố
+        else:
+            # Không có thành phố target, vẫn tính điểm bình thường
+            score += 5
         
         # Điểm cho ngân sách
         if budget_range:
@@ -1527,10 +1506,10 @@ def smart_hotel_filtering_with_city_constraint(hotels_data, reviews_data, user_q
                 if amenity in hotel_amenities:
                     score += 3
         
-        # Điểm cho loại khách sạn (5 sao)
+        # Điểm cho loại khách sạn
         hotel_rating = hotel.get('rating', 0)
         if hotel_type == 'luxury' and hotel_rating >= 4.5:
-            score += 10  # Tăng điểm mạnh cho khách sạn cao cấp
+            score += 5
         elif hotel_type == 'budget' and hotel_rating <= 4.0:
             score += 5
         elif hotel_type == 'midrange' and 4.0 < hotel_rating < 4.5:
@@ -1547,7 +1526,7 @@ def smart_hotel_filtering_with_city_constraint(hotels_data, reviews_data, user_q
         
         hotel['match_score'] = score
         scored_hotels.append(hotel)
-        print(f"📊 Added to results: {hotel['name']} in {hotel_city} - Score: {score}")
+        print(f"📊 Added to results: {hotel['name']} - Score: {score}")
     
     # Sắp xếp theo điểm
     scored_hotels.sort(key=lambda x: x.get('match_score', 0), reverse=True)
@@ -1562,23 +1541,27 @@ def smart_hotel_filtering_with_city_constraint(hotels_data, reviews_data, user_q
 
 # Giữ nguyên các hàm extract_* từ bản trước
 def extract_city_from_query(query):
-    """Trích xuất thành phố từ query - FIXED VERSION"""
+    """Trích xuất thành phố từ query - CẢI THIỆN ĐỘ CHÍNH XÁC"""
     city_mapping = {
-        'hà nội': 'Hanoi', 'hanoi': 'Hanoi', 'ha noi': 'Hanoi',
-        'đà nẵng': 'Da Nang', 'danang': 'Da Nang', 'da nang': 'Da Nang',
-        'nha trang': 'Nha Trang', 'nhatrang': 'Nha Trang',
-        'hồ chí minh': 'Ho Chi Minh', 'sài gòn': 'Ho Chi Minh', 
-        'ho chi minh': 'Ho Chi Minh', 'hcm': 'Ho Chi Minh',
-        'tp.hcm': 'Ho Chi Minh', 'tphcm': 'Ho Chi Minh'
+        'đà nẵng': 'Đà Nẵng', 'danang': 'Đà Nẵng', 'da nang': 'Đà Nẵng', 'đà nẵng': 'Đà Nẵng',
+        'hà nội': 'Hà Nội', 'hanoi': 'Hà Nội', 'ha noi': 'Hà Nội', 'hà nội': 'Hà Nội',
+        'hồ chí minh': 'Hồ Chí Minh', 'sài gòn': 'Hồ Chí Minh', 'ho chi minh': 'Hồ Chí Minh', 
+        'hcm': 'Hồ Chí Minh', 'tp.hcm': 'Hồ Chí Minh', 'tphcm': 'Hồ Chí Minh',
+        'nha trang': 'Nha Trang', 'nhatrang': 'Nha Trang', 'nha trang': 'Nha Trang',
+        'huế': 'Huế', 'hue': 'Huế', 'huế': 'Huế',
+        'hội an': 'Hội An', 'hoi an': 'Hội An', 'hội an': 'Hội An',
+        'đà lạt': 'Đà Lạt', 'dalat': 'Đà Lạt', 'da lat': 'Đà Lạt', 'đà lạt': 'Đà Lạt',
+        'phú quốc': 'Phú Quốc', 'phu quoc': 'Phú Quốc', 'phú quốc': 'Phú Quốc',
+        'vũng tàu': 'Vũng Tàu', 'vung tau': 'Vũng Tàu', 'vũng tàu': 'Vũng Tàu',
+        'quảng ninh': 'Quảng Ninh', 'quang ninh': 'Quảng Ninh', 'hạ long': 'Quảng Ninh', 
+        'ha long': 'Quảng Ninh', 'quảng ninh': 'Quảng Ninh'
     }
-    
-    query_lower = query.lower()
     
     # Tìm thành phố với độ ưu tiên cao (từ dài trước)
     sorted_cities = sorted(city_mapping.keys(), key=len, reverse=True)
     
     for keyword in sorted_cities:
-        if keyword in query_lower:
+        if keyword in query:
             return city_mapping[keyword]
     
     return None
@@ -1658,7 +1641,5 @@ def google_search(query):
 
 # === KHỞI CHẠY APP ===
 if __name__ == '__main__':
-    app.run(debug=True)
-
-
+    app.run(debug=True, host='0.0.0.0', port=5000)
 
